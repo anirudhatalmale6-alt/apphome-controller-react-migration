@@ -3,11 +3,14 @@
  * Forgot-password initiation and OTP flow
  * Migrated from AppHomeController.js forgotPassword, verify_otp_to_proceed, updateProfiles
  * Origin: $scope.signPageNumber flow (1->2->3->4)
+ *
+ * UI: Split-screen layout matching original AngularJS design
+ * Left: Password requirements (when in newPassword step)
+ * Right: Form
  */
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePasswordValidation, useConfirmPassword, useEmailValidation } from '../hooks/usePasswordValidation';
-import { PasswordStrengthIndicator, PasswordRequirements } from './PasswordStrengthIndicator';
+import { usePasswordValidation, useConfirmPassword } from '../hooks/usePasswordValidation';
 import { encryptData, encryptPassword, decryptData, maskEmail } from '../../../lib/crypto';
 import apiClient, { API_ENDPOINTS } from '../../../lib/api';
 
@@ -16,8 +19,8 @@ type Step = 'email' | 'otp' | 'newPassword' | 'success';
 /**
  * Forgot password multi-step flow
  * Step 1: Enter email -> Send OTP
- * Step 2: Verify OTP
- * Step 3: Set new password
+ * Step 2: Verify OTP (popup style)
+ * Step 3: Set new password (split layout)
  * Step 4: Success
  */
 export const ForgotPasswordView: React.FC = () => {
@@ -27,8 +30,8 @@ export const ForgotPasswordView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<Record<string, unknown> | null>(null);
   const [otpValue, setOtpValue] = useState('');
-
-  const { email, setEmail, error: emailError, validate: validateEmail } = useEmailValidation();
+  const [email, setEmail] = useState('');
+  const [showOtpModal, setShowOtpModal] = useState(false);
 
   const {
     password,
@@ -44,7 +47,7 @@ export const ForgotPasswordView: React.FC = () => {
    * Step 1: Request OTP for password recovery
    */
   const handleRequestOtp = useCallback(async () => {
-    if (!validateEmail()) return;
+    if (!email.trim()) return;
 
     setIsLoading(true);
     setError(null);
@@ -61,7 +64,7 @@ export const ForgotPasswordView: React.FC = () => {
 
       if (data[0]?.[0]?.user_id) {
         setUserProfile(data[0][0]);
-        setStep('otp');
+        setShowOtpModal(true);
       } else {
         setError('No account found with this email address');
       }
@@ -70,14 +73,14 @@ export const ForgotPasswordView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [email, validateEmail]);
+  }, [email]);
 
   /**
    * Step 2: Verify OTP
    */
   const handleVerifyOtp = useCallback(async () => {
-    if (otpValue.length !== 6) {
-      setError('Please enter a 6-digit OTP');
+    if (otpValue.length < 4) {
+      setError('Please enter a valid OTP');
       return;
     }
 
@@ -95,6 +98,7 @@ export const ForgotPasswordView: React.FC = () => {
       const data = decryptData<Array<Array<{ user_id?: string }>>>(response.data);
 
       if (data[0]?.[0]?.user_id) {
+        setShowOtpModal(false);
         setStep('newPassword');
       } else {
         setError('Invalid OTP. Please try again.');
@@ -144,160 +148,335 @@ export const ForgotPasswordView: React.FC = () => {
     }
   }, [userProfile, password, otpValue, isMatch, validatePassword]);
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 animate-fadeIn">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {step === 'success' ? 'Password Changed' : 'Forgot Password'}
-          </h1>
-          <p className="text-gray-600 mt-2">
-            {step === 'email' && 'Enter your email to receive a verification code'}
-            {step === 'otp' && `Enter the code sent to ${maskEmail(email)}`}
-            {step === 'newPassword' && 'Create your new password'}
-            {step === 'success' && 'Your password has been updated successfully'}
-          </p>
+  // Render email step (simple form)
+  if (step === 'email') {
+    return (
+      <div className="flex h-screen overflow-hidden">
+        {/* Left Panel - Branding */}
+        <div className="w-1/2 bg-[#e2e2e2] flex flex-col">
+          <div className="p-5">
+            <span className="text-xl text-slate-500">
+              <b className="text-[#4a4a4a]">optus</b> intelligence
+            </span>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center -mt-20">
+            <h2 className="text-2xl text-gray-500 mb-2">
+              Automate with <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
+            </h2>
+            <p className="text-xl text-gray-500 mb-24">
+              Steamline, Scale any business process
+            </p>
+            <div className="self-end mr-8">
+              <button
+                className="px-6 py-2 bg-[#9aaad1] text-white rounded hover:bg-[#8a9ac1] transition-colors"
+                onClick={() => window.open('https://optusintelligence.com', '_blank')}
+              >
+                Learn More
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Error Display */}
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            {error}
+        {/* Right Panel - Form */}
+        <div className="w-1/2 bg-white flex flex-col">
+          <div className="text-center mt-[5%] mb-[5%]">
+            <span className="text-xl text-gray-500">Access </span>
+            <span className="text-2xl text-gray-500">
+              <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
+            </span>
           </div>
-        )}
 
-        {/* Step 1: Email Input */}
-        {step === 'email' && (
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
+          <div className="text-center mb-4">
+            <span className="text-[#9aaad1] text-lg">Log in to continue</span>
+          </div>
+
+          <div className="px-8 max-w-md mx-auto w-full">
+            <p className="text-sm text-slate-600 mb-6">
+              Enter your email address to receive a verification code
+            </p>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="block text-sm text-gray-600 mb-1">
+                Email Address <span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
-                id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="input-field"
+                className="w-full px-3 py-2 border-b border-dotted border-gray-300 focus:border-[#9aaad1] outline-none bg-transparent"
                 placeholder="Enter your email"
                 disabled={isLoading}
               />
-              {emailError && <p className="error-text">{emailError}</p>}
             </div>
+
             <button
               onClick={handleRequestOtp}
               disabled={isLoading || !email}
-              className="w-full btn-primary disabled:opacity-50"
+              className="w-full py-2 bg-[#9aaad1] text-white rounded hover:bg-[#8a9ac1] transition-colors disabled:opacity-50"
             >
               {isLoading ? 'Sending...' : 'Send Verification Code'}
             </button>
-          </div>
-        )}
 
-        {/* Step 2: OTP Verification */}
-        {step === 'otp' && (
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-1">
-                Verification Code
-              </label>
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => navigate('/')}
+                className="text-xs text-gray-600 underline hover:text-gray-800"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* OTP Modal */}
+        {showOtpModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
+              <div className="text-center mb-4">
+                <span className="text-xl text-gray-500">Access </span>
+                <span className="text-xl text-gray-500">
+                  <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
+                </span>
+              </div>
+
+              <div className="text-center mb-4">
+                <span className="text-[#9aaad1] text-sm">Log in to continue</span>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-4">
+                A One Time Password(OTP) has been sent to your Email ID{' '}
+                <span className="text-blue-600">{maskEmail(email)}</span>. Please verify and enter below
+              </p>
+
+              {error && (
+                <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
+                  {error}
+                </div>
+              )}
+
               <input
                 type="text"
-                id="otp"
                 value={otpValue}
-                onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="input-field text-center tracking-widest text-lg"
-                placeholder="000000"
+                onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
+                className="w-full px-3 py-2 border-b border-dotted border-gray-300 focus:border-[#9aaad1] outline-none bg-transparent mb-4"
+                placeholder="Enter OTP"
                 disabled={isLoading}
-                maxLength={6}
               />
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => { setShowOtpModal(false); setOtpValue(''); setError(null); }}
+                  className="px-4 py-1.5 bg-pink-500 text-white text-sm rounded hover:bg-pink-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleVerifyOtp}
+                  disabled={isLoading || !otpValue}
+                  className="px-4 py-1.5 bg-[#9aaad1] text-white text-sm rounded hover:bg-[#8a9ac1] transition-colors disabled:opacity-50"
+                >
+                  {isLoading ? 'Verifying...' : 'Verify'}
+                </button>
+              </div>
             </div>
-            <button
-              onClick={handleVerifyOtp}
-              disabled={isLoading || otpValue.length !== 6}
-              className="w-full btn-primary disabled:opacity-50"
-            >
-              {isLoading ? 'Verifying...' : 'Verify Code'}
-            </button>
-            <button onClick={() => setStep('email')} className="w-full btn-secondary">
-              Back
-            </button>
           </div>
         )}
 
-        {/* Step 3: New Password */}
-        {step === 'newPassword' && (
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                New Password
+        <div className="fixed bottom-0 left-0 w-1/2 p-4 text-xs text-gray-500">
+          Copyright optusintelligence Inc &copy; {new Date().getFullYear()}
+        </div>
+      </div>
+    );
+  }
+
+  // Render new password step (split layout with requirements)
+  if (step === 'newPassword') {
+    return (
+      <div className="flex h-screen overflow-hidden">
+        {/* Left Panel - Password Requirements */}
+        <div className="w-1/2 bg-gradient-to-b from-[#f0f4f8] to-white border-r border-gray-200 flex flex-col">
+          <div className="p-5">
+            <span className="text-xl text-slate-500">
+              <b className="text-[#4a4a4a]">optus</b> intelligence
+            </span>
+          </div>
+
+          <div className="px-8 py-4">
+            <h1 className="text-xl font-medium text-gray-800 text-center mb-4">Create New Password</h1>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              Enter a strong, unique password to secure your account.
+            </p>
+
+            <div className="bg-white rounded-lg p-6">
+              <h2 className="font-medium text-gray-800 mb-4">Password Requirements</h2>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>Password must be exactly 8 characters long.</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>One uppercase letter (A–Z)</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>One lowercase letter (a–z)</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>One number (0–9)</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>One special character (e.g., !@#$%^&*)</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>No predictable patterns (e.g., 123, 321, abc, xyz, qwerty, asdf, aaa, 111).</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>No common or weak words (e.g., password, welcome, admin, guest).</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>No guessable formats (e.g., Name@123, User@2024).</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>No personal information (username, name, or date of birth).</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>No years or date patterns (e.g., 1990, 2024).</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>No email addresses inside the password.</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>Only English single-byte characters allowed.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel - Form */}
+        <div className="w-1/2 bg-white flex flex-col">
+          <div className="text-center mt-[5%] mb-[5%]">
+            <span className="text-xl text-gray-500">Access </span>
+            <span className="text-2xl text-gray-500">
+              <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
+            </span>
+          </div>
+
+          <div className="px-8 max-w-md mx-auto w-full">
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="block text-sm text-gray-600 mb-1">
+                New Password <span className="text-red-500">*</span>
               </label>
               <input
                 type="password"
-                id="newPassword"
                 value={password}
                 onChange={(e) => handlePasswordChange(e.target.value)}
-                className="input-field"
-                placeholder="Enter new password"
+                className="w-full px-3 py-2 border-b border-dotted border-gray-300 focus:border-[#9aaad1] outline-none bg-transparent"
                 maxLength={8}
                 disabled={isLoading}
               />
-              <PasswordStrengthIndicator strength={strength} />
-              {passwordError && <p className="error-text">{passwordError}</p>}
+              <div className="flex justify-between items-center mt-1">
+                {passwordError && <span className="text-xs text-red-500">{passwordError}</span>}
+                {password && (
+                  <span className={`text-xs ml-auto ${
+                    strength.score === 1 ? 'text-red-500' :
+                    strength.score === 2 ? 'text-orange-500' :
+                    strength.score === 3 ? 'text-green-500' : 'text-orange-500'
+                  }`}>
+                    {strength.label}
+                  </span>
+                )}
+              </div>
             </div>
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm Password
+
+            <div className="mb-6">
+              <label className="block text-sm text-gray-600 mb-1">
+                Confirm New Password <span className="text-red-500">*</span>
               </label>
               <input
                 type="password"
-                id="confirmPassword"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="input-field"
-                placeholder="Confirm new password"
+                className="w-full px-3 py-2 border-b border-dotted border-gray-300 focus:border-[#9aaad1] outline-none bg-transparent"
                 maxLength={8}
                 disabled={isLoading}
               />
-              {confirmError && <p className="error-text">{confirmError}</p>}
+              {confirmError && <p className="text-xs text-red-500 mt-1">{confirmError}</p>}
             </div>
-            <PasswordRequirements />
-            <button
-              onClick={handleUpdatePassword}
-              disabled={isLoading || !isMatch || strength.score < 3}
-              className="w-full btn-primary disabled:opacity-50"
-            >
-              {isLoading ? 'Updating...' : 'Update Password'}
-            </button>
-          </div>
-        )}
 
-        {/* Step 4: Success */}
-        {step === 'success' && (
-          <div className="text-center space-y-6">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+            <div className="flex justify-end">
+              <button
+                onClick={handleUpdatePassword}
+                disabled={isLoading || !isMatch || strength.score < 3 || !!passwordError}
+                className="px-8 py-2 bg-[#9aaad1] text-white rounded hover:bg-[#8a9ac1] transition-colors disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Saving...
+                  </span>
+                ) : 'Save'}
+              </button>
             </div>
-            <button onClick={() => navigate('/')} className="w-full btn-primary">
-              Back to Sign In
-            </button>
           </div>
-        )}
-
-        {/* Back to Login Link */}
-        {step !== 'success' && (
-          <div className="mt-6 text-center">
-            <button onClick={() => navigate('/')} className="text-blue-600 hover:text-blue-700 text-sm">
-              Back to Sign In
-            </button>
-          </div>
-        )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Render success step
+  if (step === 'success') {
+    return (
+      <div className="flex h-screen overflow-hidden">
+        {/* Left Panel - Branding */}
+        <div className="w-1/2 bg-[#e2e2e2] flex flex-col">
+          <div className="p-5">
+            <span className="text-xl text-slate-500">
+              <b className="text-[#4a4a4a]">optus</b> intelligence
+            </span>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center -mt-20">
+            <h2 className="text-2xl text-gray-500 mb-2">
+              Automate with <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
+            </h2>
+            <p className="text-xl text-gray-500 mb-24">
+              Steamline, Scale any business process
+            </p>
+            <div className="self-end mr-8">
+              <button
+                className="px-6 py-2 bg-[#9aaad1] text-white rounded hover:bg-[#8a9ac1] transition-colors"
+                onClick={() => window.open('https://optusintelligence.com', '_blank')}
+              >
+                Learn More
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel - Success */}
+        <div className="w-1/2 bg-white flex flex-col">
+          <div className="text-center mt-[5%] mb-[5%]">
+            <span className="text-xl text-gray-500">Access </span>
+            <span className="text-2xl text-gray-500">
+              <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
+            </span>
+          </div>
+
+          <div className="text-center mb-4">
+            <span className="text-[#9aaad1] text-lg">Log in to continue</span>
+          </div>
+
+          <div className="px-8 max-w-md mx-auto w-full text-center">
+            <div className="flex items-center justify-center text-sm text-slate-600 mb-4">
+              <span className="text-blue-500 mr-2">ℹ</span>
+              Your password has been changed{' '}
+              <button
+                onClick={() => navigate('/')}
+                className="text-blue-600 hover:text-blue-700 ml-1"
+              >
+                Sign in Now
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="fixed bottom-0 left-0 w-1/2 p-4 text-xs text-gray-500">
+          Copyright optusintelligence Inc &copy; {new Date().getFullYear()}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 };
 
 export default ForgotPasswordView;

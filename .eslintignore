@@ -1,0 +1,15 @@
+# Build outputs
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Generated files
+*.generated.ts
+coverage/
+
+# Config files
+vite.config.ts
+tailwind.config.js
+postcss.config.js

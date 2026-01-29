@@ -7,8 +7,9 @@ import axios from 'axios';
 import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import { encryptData, decryptData } from './crypto';
 
-// API Gateway base URL - configurable via environment
-const API_BASE_URL = import.meta.env.VITE_API_GATEWAY || '/api';
+// API Gateway base URL - empty string allows Vite proxy to work
+// In production, set VITE_API_GATEWAY to your backend URL
+const API_BASE_URL = import.meta.env.VITE_API_GATEWAY || '';
 
 /**
  * Configured Axios instance with encryption interceptors

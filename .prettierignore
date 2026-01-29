@@ -1,0 +1,13 @@
+# Build outputs
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Generated files
+*.generated.ts
+coverage/
+
+# Config files that should keep their format
+package-lock.json

@@ -39,7 +39,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   if (isAuthenticated) {
-    return <Navigate to="/BusinessHomeViews" replace />;
+    return <Navigate to="/BPaaSWorkflow" replace />;
   }
 
   return <>{children}</>;
@@ -62,7 +62,7 @@ export const AppRouter: React.FC = () => {
       <Route path="/BusinessHomeViews" element={<ProtectedRoute><BusinessHomeViewsPage /></ProtectedRoute>} />
       <Route path="/BusinessTasks" element={<ProtectedRoute><BusinessTasksPage /></ProtectedRoute>} />
       <Route path="/BusinessApps" element={<ProtectedRoute><BusinessAppsPage /></ProtectedRoute>} />
-      <Route path="/BPaaSWorkflow" element={<ProtectedRoute><BusinessAppsPage /></ProtectedRoute>} />
+      <Route path="/BPaaSWorkflow" element={<ProtectedRoute><BusinessStarterPage /></ProtectedRoute>} />
       <Route path="/BusinessStarter" element={<ProtectedRoute><BusinessStarterPage /></ProtectedRoute>} />
       <Route path="/BusinessHome" element={<ProtectedRoute><BusinessHomeViewsPage /></ProtectedRoute>} />
       <Route path="/ServiceAnalytics" element={<ProtectedRoute><BusinessHomeViewsPage /></ProtectedRoute>} />

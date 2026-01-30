@@ -54,14 +54,29 @@ export const AppRouter: React.FC = () => {
       <Route path="/forgot-username" element={<PublicRoute><ForgotUsernamePage /></PublicRoute>} />
       <Route path="/password-setup" element={<PasswordSetupPage />} />
 
-      {/* Protected Routes */}
+      {/* Protected Routes - Main Views */}
       <Route path="/BusinessHomeViews" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/BusinessTasks" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/BusinessApps" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/BPaaSWorkflow" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/BusinessStarter" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/BusinessHome" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/ServiceAnalytics" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/SLADashBoard" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+
+      {/* Protected Routes - Admin & Settings */}
       <Route path="/Admin" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/Setting" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/SLADashBoard" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+
+      {/* Protected Routes - Data Entry & Validation */}
+      <Route path="/DataValidation" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/DataEntryPage" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/DataEntryAdmin" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/BusinessCompliance" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/AppDataPage" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/ExcelViewPage" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/TechOpsTicketPreview" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
 
       {/* Terms of Service */}
       <Route path="/TermsofService" element={<HomePage />} />

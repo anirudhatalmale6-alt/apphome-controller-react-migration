@@ -7,10 +7,12 @@ import { authenticationApi } from '../features/authentication/api/authentication
 import { navigationApi } from '../features/navigation/api/navigationApi';
 import { userProfileApi } from '../features/user-profile/api/userProfileApi';
 import { applicationShellApi } from '../features/application-shell/api/applicationShellApi';
+import { businessHomeApi } from '../features/business-home/api/businessHomeApi';
 import authReducer from '../features/authentication/store/authSlice';
 import navigationReducer from '../features/navigation/store/navigationSlice';
 import userProfileReducer from '../features/user-profile/store/userProfileSlice';
 import applicationShellReducer from '../features/application-shell/store/applicationShellSlice';
+import businessHomeReducer from '../features/business-home/store/businessHomeSlice';
 
 /**
  * Configured Redux store with RTK Query APIs
@@ -23,12 +25,14 @@ export const store = configureStore({
     navigation: navigationReducer,
     userProfile: userProfileReducer,
     applicationShell: applicationShellReducer,
+    businessHome: businessHomeReducer,
 
     // RTK Query APIs
     [authenticationApi.reducerPath]: authenticationApi.reducer,
     [navigationApi.reducerPath]: navigationApi.reducer,
     [userProfileApi.reducerPath]: userProfileApi.reducer,
     [applicationShellApi.reducerPath]: applicationShellApi.reducer,
+    [businessHomeApi.reducerPath]: businessHomeApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -40,7 +44,8 @@ export const store = configureStore({
       authenticationApi.middleware,
       navigationApi.middleware,
       userProfileApi.middleware,
-      applicationShellApi.middleware
+      applicationShellApi.middleware,
+      businessHomeApi.middleware
     ),
   devTools: import.meta.env.DEV,
 });

@@ -9,12 +9,16 @@ import { userProfileApi } from '../features/user-profile/api/userProfileApi';
 import { applicationShellApi } from '../features/application-shell/api/applicationShellApi';
 import { businessHomeApi } from '../features/business-home/api/businessHomeApi';
 import { businessTasksApi } from '../features/business-tasks/api/businessTasksApi';
+import { businessStarterApi } from '../features/business-starter/api/businessStarterApi';
+import { businessAppsApi } from '../features/business-apps/api/businessAppsApi';
 import authReducer from '../features/authentication/store/authSlice';
 import navigationReducer from '../features/navigation/store/navigationSlice';
 import userProfileReducer from '../features/user-profile/store/userProfileSlice';
 import applicationShellReducer from '../features/application-shell/store/applicationShellSlice';
 import businessHomeReducer from '../features/business-home/store/businessHomeSlice';
 import businessTasksReducer from '../features/business-tasks/store/businessTasksSlice';
+import businessStarterReducer from '../features/business-starter/store/businessStarterSlice';
+import businessAppsReducer from '../features/business-apps/store/businessAppsSlice';
 
 /**
  * Configured Redux store with RTK Query APIs
@@ -29,6 +33,8 @@ export const store = configureStore({
     applicationShell: applicationShellReducer,
     businessHome: businessHomeReducer,
     businessTasks: businessTasksReducer,
+    businessStarter: businessStarterReducer,
+    businessApps: businessAppsReducer,
 
     // RTK Query APIs
     [authenticationApi.reducerPath]: authenticationApi.reducer,
@@ -37,6 +43,8 @@ export const store = configureStore({
     [applicationShellApi.reducerPath]: applicationShellApi.reducer,
     [businessHomeApi.reducerPath]: businessHomeApi.reducer,
     [businessTasksApi.reducerPath]: businessTasksApi.reducer,
+    [businessStarterApi.reducerPath]: businessStarterApi.reducer,
+    [businessAppsApi.reducerPath]: businessAppsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -50,7 +58,9 @@ export const store = configureStore({
       userProfileApi.middleware,
       applicationShellApi.middleware,
       businessHomeApi.middleware,
-      businessTasksApi.middleware
+      businessTasksApi.middleware,
+      businessStarterApi.middleware,
+      businessAppsApi.middleware
     ),
   devTools: import.meta.env.DEV,
 });

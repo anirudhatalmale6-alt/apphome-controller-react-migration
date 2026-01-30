@@ -14,6 +14,10 @@ import { ForgotUsernamePage } from '../pages/ForgotUsernamePage';
 import { PasswordSetupPage } from '../pages/PasswordSetupPage';
 import { HomePage } from '../pages/HomePage';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { BusinessHomeViewsPage } from '../pages/BusinessHomeViewsPage';
+import { BusinessTasksPage } from '../pages/BusinessTasksPage';
+import { BusinessAppsPage } from '../pages/BusinessAppsPage';
+import { BusinessStarterPage } from '../pages/BusinessStarterPage';
 
 /**
  * Protected route wrapper
@@ -55,14 +59,14 @@ export const AppRouter: React.FC = () => {
       <Route path="/password-setup" element={<PasswordSetupPage />} />
 
       {/* Protected Routes - Main Views */}
-      <Route path="/BusinessHomeViews" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/BusinessTasks" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/BusinessApps" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/BPaaSWorkflow" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/BusinessStarter" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/BusinessHome" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/ServiceAnalytics" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/SLADashBoard" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/BusinessHomeViews" element={<ProtectedRoute><BusinessHomeViewsPage /></ProtectedRoute>} />
+      <Route path="/BusinessTasks" element={<ProtectedRoute><BusinessTasksPage /></ProtectedRoute>} />
+      <Route path="/BusinessApps" element={<ProtectedRoute><BusinessAppsPage /></ProtectedRoute>} />
+      <Route path="/BPaaSWorkflow" element={<ProtectedRoute><BusinessAppsPage /></ProtectedRoute>} />
+      <Route path="/BusinessStarter" element={<ProtectedRoute><BusinessStarterPage /></ProtectedRoute>} />
+      <Route path="/BusinessHome" element={<ProtectedRoute><BusinessHomeViewsPage /></ProtectedRoute>} />
+      <Route path="/ServiceAnalytics" element={<ProtectedRoute><BusinessHomeViewsPage /></ProtectedRoute>} />
+      <Route path="/SLADashBoard" element={<ProtectedRoute><BusinessHomeViewsPage /></ProtectedRoute>} />
 
       {/* Protected Routes - Admin & Settings */}
       <Route path="/Admin" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />

@@ -2,11 +2,12 @@
  * ForgotPasswordView Component
  * Forgot-password initiation and OTP flow
  * Migrated from AppHomeController.js forgotPassword, verify_otp_to_proceed, updateProfiles
- * Origin: $scope.signPageNumber flow (1->2->3->4)
  *
- * UI: Split-screen layout matching original AngularJS design
- * Left: Password requirements (when in newPassword step)
- * Right: Form
+ * Flow:
+ * Step 1: Enter email -> Send OTP (email input page)
+ * Step 2: OTP verification page (full page, not modal)
+ * Step 3: Create new password (split layout with requirements)
+ * Step 4: Success with "Back to Sign In" link
  */
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,13 +17,6 @@ import apiClient, { API_ENDPOINTS } from '../../../lib/api';
 
 type Step = 'email' | 'otp' | 'newPassword' | 'success';
 
-/**
- * Forgot password multi-step flow
- * Step 1: Enter email -> Send OTP
- * Step 2: Verify OTP (popup style)
- * Step 3: Set new password (split layout)
- * Step 4: Success
- */
 export const ForgotPasswordView: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('email');
@@ -31,7 +25,6 @@ export const ForgotPasswordView: React.FC = () => {
   const [userProfile, setUserProfile] = useState<Record<string, unknown> | null>(null);
   const [otpValue, setOtpValue] = useState('');
   const [email, setEmail] = useState('');
-  const [showOtpModal, setShowOtpModal] = useState(false);
 
   const {
     password,
@@ -64,9 +57,9 @@ export const ForgotPasswordView: React.FC = () => {
 
       if (data[0]?.[0]?.user_id) {
         setUserProfile(data[0][0]);
-        setShowOtpModal(true);
+        setStep('otp'); // Move to OTP page instead of modal
       } else {
-        setError('No account found with this email address');
+        setError('No account found with this email address.');
       }
     } catch {
       setError('Failed to send OTP. Please try again.');
@@ -98,7 +91,6 @@ export const ForgotPasswordView: React.FC = () => {
       const data = decryptData<Array<Array<{ user_id?: string }>>>(response.data);
 
       if (data[0]?.[0]?.user_id) {
-        setShowOtpModal(false);
         setStep('newPassword');
       } else {
         setError('Invalid OTP. Please try again.');
@@ -109,6 +101,30 @@ export const ForgotPasswordView: React.FC = () => {
       setIsLoading(false);
     }
   }, [email, otpValue]);
+
+  /**
+   * Resend OTP
+   */
+  const handleResendOtp = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    setOtpValue('');
+
+    try {
+      const input = { user_login_id: email, otp_status: 0 };
+      const encrypted = encryptData(input);
+
+      await apiClient.post(API_ENDPOINTS.OTP_RECOVER_PASSWORD, encrypted, {
+        headers: { 'X-Encrypt': 'false', 'Content-Type': 'text/plain' }
+      });
+
+      setError('OTP resent successfully. Please check your email.');
+    } catch {
+      setError('Failed to resend OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [email]);
 
   /**
    * Step 3: Update password
@@ -148,38 +164,44 @@ export const ForgotPasswordView: React.FC = () => {
     }
   }, [userProfile, password, otpValue, isMatch, validatePassword]);
 
-  // Render email step (simple form)
+  // Common left branding panel
+  const LeftBrandingPanel = () => (
+    <div className="w-1/2 bg-[#e2e2e2] flex flex-col">
+      <div className="p-5">
+        <span className="text-xl text-slate-500">
+          <b className="text-[#4a4a4a]">optus</b> intelligence
+        </span>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center -mt-20">
+        <h2 className="text-2xl text-gray-500 mb-2">
+          Automate with <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
+        </h2>
+        <p className="text-xl text-gray-500 mb-24">
+          Steamline, Scale any business process
+        </p>
+        <div className="self-end mr-8">
+          <button
+            className="px-6 py-2 bg-[#9aaad1] text-white rounded hover:bg-[#8a9ac1] transition-colors"
+            onClick={() => window.open('https://optusintelligence.com', '_blank')}
+          >
+            Learn More
+          </button>
+        </div>
+      </div>
+      <div className="p-4 text-xs text-gray-500">
+        Copyright optusintelligence Inc &copy; {new Date().getFullYear()}
+      </div>
+    </div>
+  );
+
+  // Step 1: Email entry page
   if (step === 'email') {
     return (
       <div className="flex h-screen overflow-hidden">
-        {/* Left Panel - Branding */}
-        <div className="w-1/2 bg-[#e2e2e2] flex flex-col">
-          <div className="p-5">
-            <span className="text-xl text-slate-500">
-              <b className="text-[#4a4a4a]">optus</b> intelligence
-            </span>
-          </div>
-          <div className="flex-1 flex flex-col items-center justify-center -mt-20">
-            <h2 className="text-2xl text-gray-500 mb-2">
-              Automate with <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
-            </h2>
-            <p className="text-xl text-gray-500 mb-24">
-              Steamline, Scale any business process
-            </p>
-            <div className="self-end mr-8">
-              <button
-                className="px-6 py-2 bg-[#9aaad1] text-white rounded hover:bg-[#8a9ac1] transition-colors"
-                onClick={() => window.open('https://optusintelligence.com', '_blank')}
-              >
-                Learn More
-              </button>
-            </div>
-          </div>
-        </div>
+        <LeftBrandingPanel />
 
-        {/* Right Panel - Form */}
         <div className="w-1/2 bg-white flex flex-col">
-          <div className="text-center mt-[5%] mb-[5%]">
+          <div className="text-center mt-[5%] mb-[3%]">
             <span className="text-xl text-gray-500">Access </span>
             <span className="text-2xl text-gray-500">
               <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
@@ -187,12 +209,12 @@ export const ForgotPasswordView: React.FC = () => {
           </div>
 
           <div className="text-center mb-4">
-            <span className="text-[#9aaad1] text-lg">Log in to continue</span>
+            <span className="text-[#9aaad1] text-lg">Forgot Password</span>
           </div>
 
           <div className="px-8 max-w-md mx-auto w-full">
             <p className="text-sm text-slate-600 mb-6">
-              Enter your email address to receive a verification code
+              Please enter your registered email address:
             </p>
 
             {error && (
@@ -220,82 +242,115 @@ export const ForgotPasswordView: React.FC = () => {
               disabled={isLoading || !email}
               className="w-full py-2 bg-[#9aaad1] text-white rounded hover:bg-[#8a9ac1] transition-colors disabled:opacity-50"
             >
-              {isLoading ? 'Sending...' : 'Send Verification Code'}
+              {isLoading ? 'Sending...' : 'Submit'}
             </button>
 
             <div className="mt-4 text-center">
               <button
                 onClick={() => navigate('/')}
-                className="text-xs text-gray-600 underline hover:text-gray-800"
+                className="text-sm text-[#9aaad1] underline hover:text-[#8a9ac1]"
               >
                 Back to Sign In
               </button>
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* OTP Modal */}
-        {showOtpModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
-              <div className="text-center mb-4">
-                <span className="text-xl text-gray-500">Access </span>
-                <span className="text-xl text-gray-500">
-                  <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
-                </span>
+  // Step 2: OTP verification page (full page, not modal)
+  if (step === 'otp') {
+    return (
+      <div className="flex h-screen overflow-hidden">
+        <LeftBrandingPanel />
+
+        <div className="w-1/2 bg-white flex flex-col">
+          <div className="text-center mt-[5%] mb-[3%]">
+            <span className="text-xl text-gray-500">Access </span>
+            <span className="text-2xl text-gray-500">
+              <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
+            </span>
+          </div>
+
+          <div className="text-center mb-4">
+            <span className="text-[#9aaad1] text-lg">Verify OTP</span>
+          </div>
+
+          <div className="px-8 max-w-md mx-auto w-full">
+            <p className="text-sm text-slate-600 mb-6">
+              A One Time Password (OTP) has been sent to your Email ID{' '}
+              <span className="text-blue-600 font-medium">{maskEmail(email)}</span>.
+              Please verify and enter below.
+            </p>
+
+            {error && (
+              <div className={`mb-4 p-3 rounded text-sm ${
+                error.includes('success')
+                  ? 'bg-green-50 border border-green-200 text-green-700'
+                  : 'bg-red-50 border border-red-200 text-red-700'
+              }`}>
+                {error}
               </div>
+            )}
 
-              <div className="text-center mb-4">
-                <span className="text-[#9aaad1] text-sm">Log in to continue</span>
-              </div>
-
-              <p className="text-sm text-gray-600 mb-4">
-                A One Time Password(OTP) has been sent to your Email ID{' '}
-                <span className="text-blue-600">{maskEmail(email)}</span>. Please verify and enter below
-              </p>
-
-              {error && (
-                <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
-                  {error}
-                </div>
-              )}
-
+            <div className="mb-4">
+              <label className="block text-sm text-gray-600 mb-1">
+                Enter OTP <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={otpValue}
                 onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
-                className="w-full px-3 py-2 border-b border-dotted border-gray-300 focus:border-[#9aaad1] outline-none bg-transparent mb-4"
-                placeholder="Enter OTP"
+                className="w-full px-3 py-2 border-b border-dotted border-gray-300 focus:border-[#9aaad1] outline-none bg-transparent text-center text-xl tracking-widest"
+                placeholder="------"
+                maxLength={6}
                 disabled={isLoading}
               />
+            </div>
 
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={() => { setShowOtpModal(false); setOtpValue(''); setError(null); }}
-                  className="px-4 py-1.5 bg-pink-500 text-white text-sm rounded hover:bg-pink-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleVerifyOtp}
-                  disabled={isLoading || !otpValue}
-                  className="px-4 py-1.5 bg-[#9aaad1] text-white text-sm rounded hover:bg-[#8a9ac1] transition-colors disabled:opacity-50"
-                >
-                  {isLoading ? 'Verifying...' : 'Verify'}
-                </button>
-              </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setStep('email'); setOtpValue(''); setError(null); }}
+                className="flex-1 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleVerifyOtp}
+                disabled={isLoading || !otpValue}
+                className="flex-1 py-2 bg-[#9aaad1] text-white rounded hover:bg-[#8a9ac1] transition-colors disabled:opacity-50"
+              >
+                {isLoading ? 'Verifying...' : 'Verify'}
+              </button>
+            </div>
+
+            <div className="mt-4 text-center">
+              <span className="text-sm text-gray-500">Didn't receive the code? </span>
+              <button
+                onClick={handleResendOtp}
+                disabled={isLoading}
+                className="text-sm text-[#9aaad1] underline hover:text-[#8a9ac1] disabled:opacity-50"
+              >
+                Resend OTP
+              </button>
+            </div>
+
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => navigate('/')}
+                className="text-sm text-gray-500 underline hover:text-gray-700"
+              >
+                Back to Sign In
+              </button>
             </div>
           </div>
-        )}
-
-        <div className="fixed bottom-0 left-0 w-1/2 p-4 text-xs text-gray-500">
-          Copyright optusintelligence Inc &copy; {new Date().getFullYear()}
         </div>
       </div>
     );
   }
 
-  // Render new password step (split layout with requirements)
+  // Step 3: New password page (split layout with requirements)
   if (step === 'newPassword') {
     return (
       <div className="flex h-screen overflow-hidden">
@@ -327,19 +382,27 @@ export const ForgotPasswordView: React.FC = () => {
                 <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>No personal information (username, name, or date of birth).</li>
                 <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>No years or date patterns (e.g., 1990, 2024).</li>
                 <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>No email addresses inside the password.</li>
-                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>Only English single-byte characters allowed.</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>Only English single-byte characters allowed (no double-byte, Unicode, emojis, or non-English scripts).</li>
+                <li className="flex items-start"><span className="text-blue-500 mr-2">•</span>Password must combine at least 3 of the 4 character types: uppercase, lowercase, number, special character.</li>
               </ul>
             </div>
+          </div>
+          <div className="p-4 text-xs text-gray-500">
+            Copyright optusintelligence Inc &copy; {new Date().getFullYear()}
           </div>
         </div>
 
         {/* Right Panel - Form */}
         <div className="w-1/2 bg-white flex flex-col">
-          <div className="text-center mt-[5%] mb-[5%]">
+          <div className="text-center mt-[5%] mb-[3%]">
             <span className="text-xl text-gray-500">Access </span>
             <span className="text-2xl text-gray-500">
               <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
             </span>
+          </div>
+
+          <div className="text-center mb-4">
+            <span className="text-[#9aaad1] text-lg">Create New Password</span>
           </div>
 
           <div className="px-8 max-w-md mx-auto w-full">
@@ -413,38 +476,14 @@ export const ForgotPasswordView: React.FC = () => {
     );
   }
 
-  // Render success step
+  // Step 4: Success page
   if (step === 'success') {
     return (
       <div className="flex h-screen overflow-hidden">
-        {/* Left Panel - Branding */}
-        <div className="w-1/2 bg-[#e2e2e2] flex flex-col">
-          <div className="p-5">
-            <span className="text-xl text-slate-500">
-              <b className="text-[#4a4a4a]">optus</b> intelligence
-            </span>
-          </div>
-          <div className="flex-1 flex flex-col items-center justify-center -mt-20">
-            <h2 className="text-2xl text-gray-500 mb-2">
-              Automate with <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
-            </h2>
-            <p className="text-xl text-gray-500 mb-24">
-              Steamline, Scale any business process
-            </p>
-            <div className="self-end mr-8">
-              <button
-                className="px-6 py-2 bg-[#9aaad1] text-white rounded hover:bg-[#8a9ac1] transition-colors"
-                onClick={() => window.open('https://optusintelligence.com', '_blank')}
-              >
-                Learn More
-              </button>
-            </div>
-          </div>
-        </div>
+        <LeftBrandingPanel />
 
-        {/* Right Panel - Success */}
         <div className="w-1/2 bg-white flex flex-col">
-          <div className="text-center mt-[5%] mb-[5%]">
+          <div className="text-center mt-[5%] mb-[3%]">
             <span className="text-xl text-gray-500">Access </span>
             <span className="text-2xl text-gray-500">
               <b className="text-slate-600"><span className="text-[#4a4a4a]">one</span>base</b>
@@ -452,25 +491,24 @@ export const ForgotPasswordView: React.FC = () => {
           </div>
 
           <div className="text-center mb-4">
-            <span className="text-[#9aaad1] text-lg">Log in to continue</span>
+            <span className="text-[#9aaad1] text-lg">Password Updated</span>
           </div>
 
           <div className="px-8 max-w-md mx-auto w-full text-center">
-            <div className="flex items-center justify-center text-sm text-slate-600 mb-4">
-              <span className="text-blue-500 mr-2">ℹ</span>
-              Your password has been changed{' '}
-              <button
-                onClick={() => navigate('/')}
-                className="text-blue-600 hover:text-blue-700 ml-1"
-              >
-                Sign in Now
-              </button>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+              <svg className="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-green-700 font-medium">Your password has been changed successfully!</p>
             </div>
-          </div>
-        </div>
 
-        <div className="fixed bottom-0 left-0 w-1/2 p-4 text-xs text-gray-500">
-          Copyright optusintelligence Inc &copy; {new Date().getFullYear()}
+            <button
+              onClick={() => navigate('/')}
+              className="px-8 py-2 bg-[#9aaad1] text-white rounded hover:bg-[#8a9ac1] transition-colors"
+            >
+              Back to Sign In
+            </button>
+          </div>
         </div>
       </div>
     );

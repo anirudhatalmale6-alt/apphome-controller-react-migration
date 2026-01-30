@@ -10,6 +10,7 @@ import { selectIsAuthenticated } from '../features/authentication/store/authSlic
 // Pages
 import { LoginPage } from '../pages/LoginPage';
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage';
+import { ForgotUsernamePage } from '../pages/ForgotUsernamePage';
 import { PasswordSetupPage } from '../pages/PasswordSetupPage';
 import { HomePage } from '../pages/HomePage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -50,6 +51,7 @@ export const AppRouter: React.FC = () => {
       <Route path="/" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+      <Route path="/forgot-username" element={<PublicRoute><ForgotUsernamePage /></PublicRoute>} />
       <Route path="/password-setup" element={<PasswordSetupPage />} />
 
       {/* Protected Routes */}

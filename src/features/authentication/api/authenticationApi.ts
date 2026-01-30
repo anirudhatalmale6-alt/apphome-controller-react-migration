@@ -2,6 +2,7 @@
  * Authentication RTK Query API
  * Server communication and caching for authentication
  * Migrated from AppHomeController.js $http calls
+ * NOTE: Encrypted endpoints send body as plain text to match AngularJS behavior
  */
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { encryptData, decryptData, encryptPassword } from '../../../lib/crypto';
@@ -41,6 +42,7 @@ export const authenticationApi = createApi({
           password: encryptPassword(password),
           browserData: getDeviceInfo()
         }),
+        headers: { 'Content-Type': 'text/plain' },
       }),
       transformResponse: (response: string) => decryptData<SignInResponse[][]>(response),
       invalidatesTags: ['Auth'],
@@ -61,6 +63,7 @@ export const authenticationApi = createApi({
             ip: '',
             ...(remoteKey && { remoteKey })
           }),
+          headers: { 'Content-Type': 'text/plain' },
         };
       },
       transformResponse: (response: string) => decryptData<LoginStatusResponse[][]>(response),
@@ -71,7 +74,8 @@ export const authenticationApi = createApi({
       query: ({ username }) => ({
         url: API_ENDPOINTS.VALIDATE_USER,
         method: 'POST',
-        body: { username },
+        body: JSON.stringify({ username }),
+        headers: { 'Content-Type': 'application/json' },
       }),
     }),
 
@@ -80,7 +84,8 @@ export const authenticationApi = createApi({
       query: ({ username }) => ({
         url: API_ENDPOINTS.VALIDATE_ONBASE_USER,
         method: 'POST',
-        body: { username },
+        body: JSON.stringify({ username }),
+        headers: { 'Content-Type': 'application/json' },
       }),
     }),
 
@@ -89,7 +94,8 @@ export const authenticationApi = createApi({
       query: ({ username }) => ({
         url: API_ENDPOINTS.CHECK_MFA,
         method: 'POST',
-        body: { username },
+        body: JSON.stringify({ username }),
+        headers: { 'Content-Type': 'application/json' },
       }),
     }),
 
@@ -98,7 +104,8 @@ export const authenticationApi = createApi({
       query: ({ username }) => ({
         url: API_ENDPOINTS.GET_QR_CODE,
         method: 'POST',
-        body: { username },
+        body: JSON.stringify({ username }),
+        headers: { 'Content-Type': 'application/json' },
       }),
     }),
 
@@ -107,7 +114,8 @@ export const authenticationApi = createApi({
       query: (input) => ({
         url: API_ENDPOINTS.VERIFY_CODE,
         method: 'POST',
-        body: input,
+        body: JSON.stringify(input),
+        headers: { 'Content-Type': 'application/json' },
       }),
     }),
 
@@ -117,6 +125,7 @@ export const authenticationApi = createApi({
         url: API_ENDPOINTS.SIGN_OUT,
         method: 'POST',
         body: encryptData(input),
+        headers: { 'Content-Type': 'text/plain' },
       }),
       invalidatesTags: ['Auth', 'User'],
     }),
@@ -126,7 +135,8 @@ export const authenticationApi = createApi({
       query: ({ userName, password }) => ({
         url: API_ENDPOINTS.SET_PASSWORD,
         method: 'POST',
-        body: { userName, password: encryptPassword(password) },
+        body: JSON.stringify({ userName, password: encryptPassword(password) }),
+        headers: { 'Content-Type': 'application/json' },
       }),
     }),
 
@@ -136,6 +146,40 @@ export const authenticationApi = createApi({
         url: API_ENDPOINTS.FORGOT_USERNAME,
         method: 'POST',
         body: encryptData(input),
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+      transformResponse: (response: string) => decryptData(response),
+    }),
+
+    // Request OTP for forgot password - POST /baasHome/otp_to_recover_password
+    requestOtpForForgotPassword: builder.mutation({
+      query: ({ user_login_id, otp_status = 0 }: { user_login_id: string; otp_status?: number }) => ({
+        url: API_ENDPOINTS.OTP_RECOVER_PASSWORD,
+        method: 'POST',
+        body: encryptData({ user_login_id, otp_status }),
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+      transformResponse: (response: string) => decryptData(response),
+    }),
+
+    // Verify OTP - POST /baasHome/verify_otp_to_proceed
+    verifyOtpToRecover: builder.mutation({
+      query: ({ user_login_id, otp_value }: { user_login_id: string; otp_value: string }) => ({
+        url: API_ENDPOINTS.VERIFY_OTP,
+        method: 'POST',
+        body: encryptData({ user_login_id, otp_value }),
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+      transformResponse: (response: string) => decryptData(response),
+    }),
+
+    // Update user profile (password reset) - POST /baasHome/update_user_profile
+    updatePassword: builder.mutation({
+      query: (profileData: { user_login_id: string; password: string; [key: string]: unknown }) => ({
+        url: API_ENDPOINTS.UPDATE_USER_PROFILE,
+        method: 'POST',
+        body: encryptData({ ...profileData, password: encryptPassword(profileData.password) }),
+        headers: { 'Content-Type': 'text/plain' },
       }),
       transformResponse: (response: string) => decryptData(response),
     }),
@@ -153,4 +197,7 @@ export const {
   useSignOutMutation,
   useSetPasswordMutation,
   useForgotUsernameMutation,
+  useRequestOtpForForgotPasswordMutation,
+  useVerifyOtpToRecoverMutation,
+  useUpdatePasswordMutation,
 } = authenticationApi;

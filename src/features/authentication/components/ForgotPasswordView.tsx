@@ -57,7 +57,7 @@ export const ForgotPasswordView: React.FC = () => {
       const encrypted = encryptData(input);
 
       const response = await apiClient.post(API_ENDPOINTS.OTP_RECOVER_PASSWORD, encrypted, {
-        headers: { 'X-Encrypt': 'false' }
+        headers: { 'X-Encrypt': 'false', 'Content-Type': 'text/plain' }
       });
 
       const data = decryptData<Array<Array<{ user_id?: string }>>>(response.data);
@@ -92,7 +92,7 @@ export const ForgotPasswordView: React.FC = () => {
       const encrypted = encryptData(input);
 
       const response = await apiClient.post(API_ENDPOINTS.VERIFY_OTP, encrypted, {
-        headers: { 'X-Encrypt': 'false' }
+        headers: { 'X-Encrypt': 'false', 'Content-Type': 'text/plain' }
       });
 
       const data = decryptData<Array<Array<{ user_id?: string }>>>(response.data);
@@ -131,7 +131,7 @@ export const ForgotPasswordView: React.FC = () => {
       const encrypted = encryptData(input);
 
       const response = await apiClient.post(API_ENDPOINTS.UPDATE_USER_PROFILE, encrypted, {
-        headers: { 'X-Encrypt': 'false' }
+        headers: { 'X-Encrypt': 'false', 'Content-Type': 'text/plain' }
       });
 
       const data = decryptData<Array<Array<{ user_id?: string }>>>(response.data);

@@ -26,12 +26,16 @@ export const apiClient: AxiosInstance = axios.create({
 /**
  * Request interceptor - encrypts outgoing data
  * Matches original $http POST pattern with encrypted body
+ * NOTE: Encrypted data must be sent as text/plain (not JSON) to avoid Base64 decode errors
  */
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Encrypt request body if it's a POST with data
     if (config.method === 'post' && config.data && config.headers['X-Encrypt'] !== 'false') {
       config.data = encryptData(config.data);
+      // Set Content-Type to text/plain for encrypted payloads
+      // This prevents JSON serialization which wraps the Base64 string in quotes
+      config.headers['Content-Type'] = 'text/plain';
     }
     return config;
   },

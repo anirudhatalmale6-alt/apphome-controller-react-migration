@@ -14,7 +14,8 @@ export type NavigationItem =
   | 'help'
   | 'rules'
   | 'create'
-  | 'setting';
+  | 'setting'
+  | 'refresh';
 
 export interface PathMapping {
   [key: string]: string;

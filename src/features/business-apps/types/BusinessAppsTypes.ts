@@ -1,4 +1,86 @@
 // BusinessApps Types
+// Migrated from BusinessAppsController.js
+
+// Response from load_bu_queue_actions API
+export interface BuQueueAction {
+  result?: string;
+  bu_id: string;
+  bu_desc: string;
+  tps_id: string;
+  dept_id: string;
+  queue_info: QueueInfo[];
+}
+
+export interface QueueInfo {
+  queue_id: string;
+  custom_queue_name: string;
+  workflow_inbox_config: string; // JSON string that needs parsing
+}
+
+export interface WorkflowInboxConfigItem {
+  displayName: string;
+  isActionEnabled: boolean;
+  workflowName: string;
+  [key: string]: unknown; // Dynamic action keys like "new", "pending", etc.
+}
+
+// Parsed queue action for UI rendering
+export interface ParsedQueueItem {
+  queue_id: string;
+  QueueNames: string;
+  QueueProperties: QueueProperty[];
+  display_id: number;
+}
+
+export interface QueueProperty {
+  bPaaS_workflow_status: string;
+  bPaaS_workflow_id: number;
+  count: number;
+  displayName: string;
+  isActionEnabled: boolean;
+  inboxHeaders: unknown;
+  workflowName: string;
+}
+
+// Response from load_workflow_inbox_menus API
+export interface WorkflowInboxMenu {
+  menu_configuration?: string;
+  workflow_inbox_config?: string;
+  analytics_aging?: string;
+  result?: string;
+}
+
+// Response from load_inbox_serachConfig API
+export interface InboxSearchConfig {
+  search_config?: string;
+  result?: string;
+}
+
+// Response from load_din_dashboard API
+export interface DinDashboardData {
+  [key: string]: unknown;
+}
+
+// Response from loadDisplayTimeForInbox API
+export interface DisplayTimeSettings {
+  display_time?: string;
+  timezone?: string;
+  result?: string;
+}
+
+// Response from load_pending_list API
+export interface PendingListData {
+  [key: string]: unknown;
+}
+
+// Response from loadDocUploadRecents API
+export interface DocUploadRecent {
+  file_id: string;
+  file_name: string;
+  upload_date: string;
+  mime_type?: string;
+  [key: string]: unknown;
+}
 
 export interface MenuTab {
   title: string;

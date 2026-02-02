@@ -84,5 +84,6 @@ export const buildInitialSelection = (isDevops: boolean): Record<NavigationItem,
     create: false,
     setting: false,
     admin: false,
+    refresh: false,
   };
 };

@@ -1,6 +1,7 @@
 /**
  * User Profile RTK Query API
  * Migrated from AppHomeController.js profile-related $http calls
+ * NOTE: Body is sent as plain text (encrypted string) to match AngularJS $http behavior
  */
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { encryptData, decryptData } from '../../../lib/crypto';
@@ -14,6 +15,7 @@ export const userProfileApi = createApi({
     baseUrl: API_BASE,
     prepareHeaders: (headers) => {
       headers.set('Accept', 'application/json;charset=utf-8');
+      headers.set('Content-Type', 'text/plain');
       return headers;
     },
   }),
@@ -25,6 +27,7 @@ export const userProfileApi = createApi({
         url: API_ENDPOINTS.UPDATE_USER_PROFILE,
         method: 'POST',
         body: encryptData(profileData),
+        headers: { 'Content-Type': 'text/plain' },
       }),
       transformResponse: (response: string) => decryptData(response),
       invalidatesTags: ['UserProfile'],
@@ -36,6 +39,7 @@ export const userProfileApi = createApi({
         url: API_ENDPOINTS.OTP_RECOVER_PASSWORD,
         method: 'POST',
         body: encryptData({ user_login_id, otp_status: 3, sp_process_id }),
+        headers: { 'Content-Type': 'text/plain' },
       }),
       transformResponse: (response: string) => decryptData(response),
     }),
@@ -46,6 +50,7 @@ export const userProfileApi = createApi({
         url: API_ENDPOINTS.VERIFY_OTP,
         method: 'POST',
         body: encryptData({ user_login_id, otp_value }),
+        headers: { 'Content-Type': 'text/plain' },
       }),
       transformResponse: (response: string) => decryptData(response),
     }),
@@ -56,6 +61,7 @@ export const userProfileApi = createApi({
         url: API_ENDPOINTS.UPDATE_USER_ACTIVITIES,
         method: 'POST',
         body: encryptData({ logingdata: loggingData }),
+        headers: { 'Content-Type': 'text/plain' },
       }),
       transformResponse: (response: string) => decryptData(response),
     }),

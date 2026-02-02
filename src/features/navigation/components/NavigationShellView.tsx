@@ -1,22 +1,26 @@
 /**
  * NavigationShellView Component
- * Sidebar/menu selection and active-state handling
- * Migrated from AppHomeController.js sidenav, selectItem, isItemSelected
+ * Left sidebar navigation matching OneBase UI
+ * Icons: Home, Tasks, Apps, Refresh, Setting
  */
 import { useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavigationState } from '../hooks/useNavigationState';
 import type { NavigationItem } from '../types/NavigationTypes';
 
 interface NavItemConfig {
   key: NavigationItem;
   label: string;
+  route?: string;
   icon: React.ReactNode;
+  isAction?: boolean;
 }
 
 const NAV_ITEMS: NavItemConfig[] = [
   {
     key: 'home',
     label: 'Home',
+    route: '/BusinessHomeViews',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -27,6 +31,7 @@ const NAV_ITEMS: NavItemConfig[] = [
   {
     key: 'tasks',
     label: 'Tasks',
+    route: '/BusinessTasks',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -37,6 +42,7 @@ const NAV_ITEMS: NavItemConfig[] = [
   {
     key: 'apps',
     label: 'Apps',
+    route: '/BusinessApps',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -45,18 +51,20 @@ const NAV_ITEMS: NavItemConfig[] = [
     ),
   },
   {
-    key: 'analytics',
-    label: 'Analytics',
+    key: 'refresh',
+    label: 'Refresh',
+    isAction: true,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>
     ),
   },
   {
     key: 'setting',
-    label: 'Settings',
+    label: 'Setting',
+    route: '/Setting',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -69,51 +77,97 @@ const NAV_ITEMS: NavItemConfig[] = [
 
 interface NavigationShellViewProps {
   children: React.ReactNode;
+  onRefresh?: () => void;
 }
 
 /**
- * Navigation shell with sidebar
+ * Navigation shell with left sidebar matching OneBase UI
  */
-export const NavigationShellView: React.FC<NavigationShellViewProps> = ({ children }) => {
-  const { isItemSelected, isSidebarHidden, isLoading, selectItem } = useNavigationState();
+export const NavigationShellView: React.FC<NavigationShellViewProps> = ({ children, onRefresh }) => {
+  const { isSidebarHidden, isLoading } = useNavigationState();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleNavClick = useCallback((item: NavigationItem) => {
-    selectItem(item);
-  }, [selectItem]);
+  const isActive = useCallback((route?: string) => {
+    if (!route) return false;
+    return location.pathname === route;
+  }, [location.pathname]);
+
+  const handleNavClick = useCallback((item: NavItemConfig) => {
+    if (item.isAction && item.key === 'refresh') {
+      onRefresh?.();
+      window.location.reload();
+    } else if (item.route) {
+      navigate(item.route);
+    }
+  }, [navigate, onRefresh]);
 
   if (isSidebarHidden) {
     return <>{children}</>;
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
+    <div className="flex h-screen bg-gray-50">
+      {/* Left Sidebar - Narrow icon navigation */}
       <aside className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4">
-        {NAV_ITEMS.map((item) => (
+        {/* Main nav items */}
+        <div className="flex flex-col items-center space-y-1 flex-1">
+          {NAV_ITEMS.slice(0, 3).map((item) => (
+            <button
+              key={item.key}
+              onClick={() => handleNavClick(item)}
+              className={`
+                w-12 h-12 rounded-lg flex flex-col items-center justify-center
+                transition-colors duration-200 text-xs
+                ${isActive(item.route)
+                  ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                }
+              `}
+              title={item.label}
+            >
+              {item.icon}
+              <span className="mt-1 text-[10px]">{item.label}</span>
+            </button>
+          ))}
+
+          {/* Refresh button */}
           <button
-            key={item.key}
-            onClick={() => handleNavClick(item.key)}
+            onClick={() => handleNavClick(NAV_ITEMS[3])}
+            className="w-12 h-12 rounded-lg flex flex-col items-center justify-center
+              transition-colors duration-200 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            title="Refresh"
+          >
+            {NAV_ITEMS[3].icon}
+            <span className="mt-1 text-[10px]">Refresh</span>
+          </button>
+        </div>
+
+        {/* Settings at bottom */}
+        <div className="mt-auto">
+          <button
+            onClick={() => handleNavClick(NAV_ITEMS[4])}
             className={`
-              w-12 h-12 mb-2 rounded-lg flex items-center justify-center
-              transition-colors duration-200
-              ${isItemSelected[item.key]
-                ? 'bg-blue-100 text-blue-600'
+              w-12 h-12 rounded-lg flex flex-col items-center justify-center
+              transition-colors duration-200 text-xs
+              ${isActive(NAV_ITEMS[4].route)
+                ? 'bg-blue-50 text-blue-600'
                 : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
               }
             `}
-            title={item.label}
+            title="Setting"
           >
-            {item.icon}
+            {NAV_ITEMS[4].icon}
+            <span className="mt-1 text-[10px]">Setting</span>
           </button>
-        ))}
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto relative">
-        {/* Loading Overlay */}
         {isLoading && (
           <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
-            <div className="loading-spinner" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
           </div>
         )}
         {children}

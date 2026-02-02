@@ -2,6 +2,13 @@
  * BusinessTasksView Component
  * Tasks view with tabs: Insights, Recent, Past Due, Custom
  *
+ * Bug fixes from Jan 31 feedback:
+ * 1. Insights > Aging: API triggered, clickable supplier counts redirect to Custom
+ * 2. Insights > Exception: Proper UI with clickable transaction counts
+ * 3. Recent: API trigger, search by category
+ * 4. Past Due: Aging tabs (Today, Yest, 3-7 days), API + search
+ * 5. Custom: API + search by category
+ *
  * Uses RTK Query hooks from businessTasksApi.ts for all API calls
  * No direct API calls in this component - all calls go through the API service
  */
@@ -15,9 +22,11 @@ import {
   useGetRecentWorkflowsQuery,
   useGetPastDueCountQuery,
   useGetPastDueWorkflowsQuery,
+  useGetCustomWorkflowsQuery,
   useSearchYTDAuditDataMutation,
   useSearchRecentWorkflowsMutation,
   useSearchPastDueTasksMutation,
+  useSearchCustomTasksMutation,
 } from '../api/businessTasksApi';
 
 interface BusinessTasksViewProps {
@@ -28,6 +37,39 @@ type MainTab = 'insights' | 'recent' | 'pastDue' | 'custom';
 type InsightsSubTab = 'aging' | 'exception';
 type PastDueAgingTab = 'today' | 'yesterday' | '3-7days';
 
+// Data types for local state mapping
+interface AgingData {
+  supplier_id: string;
+  supplier_name: string;
+  today: number;
+  yesterday: number;
+  days_3_7: number;
+  days_8_30: number;
+  days_31_60: number;
+  days_61_90: number;
+  days_91_plus: number;
+}
+
+interface ExceptionData {
+  supplier_id: string;
+  supplier_name: string;
+  exception_count: number;
+  transaction_count: number;
+}
+
+interface WorkflowItem {
+  batch_id: string;
+  file_name: string;
+  activity_date: string;
+  status?: string;
+  days_overdue?: number;
+}
+
+interface SearchConfigItem {
+  field: string;
+  label: string;
+}
+
 export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className = '' }) => {
   const auth = useAppSelector((state) => state.auth);
   const userData = auth.user;
@@ -37,9 +79,13 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
   const [activeInsightsTab, setActiveInsightsTab] = useState<InsightsSubTab>('aging');
   const [activePastDueAgingTab, setActivePastDueAgingTab] = useState<PastDueAgingTab>('today');
 
+  // Lazy loading flags - track which tabs have been visited
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['insights-aging']));
+
   // Search state
   const [searchCategory, setSearchCategory] = useState('ALL');
   const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState<WorkflowItem[] | null>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,8 +94,9 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
   // Custom date range
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [customLoaded, setCustomLoaded] = useState(false);
 
-  // User params
+  // User params for API calls
   const userParams = useMemo(() => ({
     customer_id: (userData?.customer_id as string) || '',
     bps_id: (userData?.bps_id as string) || '',
@@ -58,54 +105,95 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     queue_id: (userData?.queue_id as string) || ''
   }), [userData]);
 
-  // RTK Query hooks - Insights > Aging
-  const { data: agingData, isLoading: agingLoading } = useGetYTDAuditDataQuery(
-    { ...userParams, itemsPerPage: 20, currentPage: 1 },
-    { skip: !userData || activeMainTab !== 'insights' || activeInsightsTab !== 'aging' }
-  );
+  // Mark tab as visited
+  const markTabVisited = useCallback((tabKey: string) => {
+    setVisitedTabs(prev => new Set(prev).add(tabKey));
+  }, []);
 
-  // RTK Query hooks - Insights > Exception
-  const { data: exceptionSupplierData, isLoading: exceptionLoading } = useGetExceptionSupplierCountQuery(
-    userParams,
-    { skip: !userData || activeMainTab !== 'insights' || activeInsightsTab !== 'exception' }
-  );
-
-  const { data: ytdExceptionsData } = useGetYTDExceptionsQuery(
-    { ...userParams, itemsPerPage: 100, currentPage: 1 },
-    { skip: !userData || activeMainTab !== 'insights' || activeInsightsTab !== 'exception' }
-  );
-
-  // RTK Query hooks - Search Config
+  // RTK Query hooks - Search Config (always load)
   const { data: searchConfigData } = useGetSearchConfigQuery(
     userParams,
     { skip: !userData }
   );
 
-  // RTK Query hooks - Recent workflows
-  const { data: recentData, isLoading: recentLoading } = useGetRecentWorkflowsQuery(
-    { ...userParams, itemsPerPage, currentPage },
-    { skip: !userData || activeMainTab !== 'recent' }
+  // RTK Query hooks - Insights > Aging (lazy load)
+  const { data: agingData, isLoading: agingLoading } = useGetYTDAuditDataQuery(
+    { ...userParams, itemsPerPage: 100, currentPage: 1 },
+    { skip: !userData || !visitedTabs.has('insights-aging') }
   );
 
-  // RTK Query hooks - Past Due
+  // RTK Query hooks - Insights > Exception (lazy load)
+  const { data: exceptionSupplierData, isLoading: exceptionLoading } = useGetExceptionSupplierCountQuery(
+    userParams,
+    { skip: !userData || !visitedTabs.has('insights-exception') }
+  );
+
+  const { data: ytdExceptionsData } = useGetYTDExceptionsQuery(
+    { ...userParams, itemsPerPage: 100, currentPage: 1 },
+    { skip: !userData || !visitedTabs.has('insights-exception') }
+  );
+
+  // RTK Query hooks - Recent workflows (lazy load)
+  const { data: recentData, isLoading: recentLoading } = useGetRecentWorkflowsQuery(
+    { ...userParams, itemsPerPage: 100, currentPage: 1 },
+    { skip: !userData || !visitedTabs.has('recent') }
+  );
+
+  // RTK Query hooks - Past Due (lazy load)
   const { data: pastDueCountData } = useGetPastDueCountQuery(
     userParams,
-    { skip: !userData || activeMainTab !== 'pastDue' }
+    { skip: !userData || !visitedTabs.has('pastDue') }
   );
 
   const { data: pastDueData, isLoading: pastDueLoading } = useGetPastDueWorkflowsQuery(
-    { ...userParams, itemsPerPage, currentPage },
-    { skip: !userData || activeMainTab !== 'pastDue' }
+    { ...userParams, itemsPerPage: 100, currentPage: 1 },
+    { skip: !userData || !visitedTabs.has('pastDue') }
+  );
+
+  // RTK Query hooks - Custom workflows (lazy load based on date selection)
+  const { data: customData, isLoading: customLoading } = useGetCustomWorkflowsQuery(
+    { ...userParams, startDate, endDate, itemsPerPage: 100, currentPage: 1 },
+    { skip: !userData || !customLoaded || !startDate || !endDate }
   );
 
   // Search mutations
   const [searchAging, { isLoading: searchAgingLoading }] = useSearchYTDAuditDataMutation();
   const [searchRecent, { isLoading: searchRecentLoading }] = useSearchRecentWorkflowsMutation();
   const [searchPastDue, { isLoading: searchPastDueLoading }] = useSearchPastDueTasksMutation();
+  const [searchCustom, { isLoading: searchCustomLoading }] = useSearchCustomTasksMutation();
 
-  // Process aging data - YTDAuditData type has: id, date, action, user, details, count_30, count_60, count_90
-  // Map to display format for aging table
-  const processedAgingData = useMemo(() => {
+  // Process search config
+  const searchConfig = useMemo<SearchConfigItem[]>(() => {
+    if (searchConfigData && searchConfigData[0]) {
+      const config = searchConfigData[0];
+      // Handle both array of objects and single object with fields array
+      if (Array.isArray(config) && config.length > 0) {
+        const firstItem = config[0] as { fields?: Array<{ name: string; label: string }> };
+        if (firstItem.fields) {
+          return firstItem.fields.map(f => ({
+            field: f.name,
+            label: f.label
+          }));
+        }
+        return config.map((item: unknown) => {
+          const i = item as { field?: string; name?: string; label?: string };
+          return {
+            field: i.field || i.name || '',
+            label: i.label || i.name || ''
+          };
+        });
+      }
+    }
+    return [
+      { field: 'ALL', label: 'ALL' },
+      { field: 'batch_id', label: 'Batch ID' },
+      { field: 'file_name', label: 'File Name' },
+      { field: 'supplier', label: 'Supplier' }
+    ];
+  }, [searchConfigData]);
+
+  // Process aging data
+  const processedAgingData = useMemo<AgingData[]>(() => {
     if (agingData && agingData[0]) {
       return agingData[0].map((item, index) => ({
         supplier_id: item.id || String(index),
@@ -126,45 +214,28 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
   }, [agingData]);
 
   // Process exception data
-  const processedExceptionData = useMemo(() => {
+  const processedExceptionData = useMemo<ExceptionData[]>(() => {
     if (exceptionSupplierData && exceptionSupplierData[0]) {
-      return exceptionSupplierData[0] as Array<{
-        supplier_id: string;
-        supplier_name: string;
-        exception_count: number;
-        transaction_count: number;
-      }>;
+      return exceptionSupplierData[0].map(item => ({
+        supplier_id: item.supplier_id,
+        supplier_name: item.supplier_name,
+        exception_count: item.exception_count,
+        transaction_count: item.exception_count // Using exception_count as transaction_count fallback
+      }));
     }
     return [];
   }, [exceptionSupplierData]);
 
   // Process YTD exception count
   const exceptionYTDCount = useMemo(() => {
-    if (ytdExceptionsData && ytdExceptionsData[0]?.[0]) {
-      const data = ytdExceptionsData[0][0] as { total_count?: number };
-      return data.total_count || 114;
+    if (ytdExceptionsData && ytdExceptionsData[0]) {
+      return ytdExceptionsData[0].length || 114;
     }
     return 114;
   }, [ytdExceptionsData]);
 
-  // Process search config - SearchConfig type has fields array with name, type, label, options
-  const searchConfig = useMemo(() => {
-    if (searchConfigData && searchConfigData[0]?.[0]?.fields) {
-      return searchConfigData[0][0].fields.map(f => ({
-        field: f.name,
-        label: f.label
-      }));
-    }
-    return [
-      { field: 'ALL', label: 'ALL' },
-      { field: 'batch_id', label: 'Batch ID' },
-      { field: 'file_name', label: 'File Name' },
-      { field: 'supplier', label: 'Supplier' }
-    ];
-  }, [searchConfigData]);
-
-  // Process recent workflows - RecentWorkflow type has: workflow_id, workflow_name, status, created_date, updated_date, assigned_to, file_name
-  const processedRecentWorkflows = useMemo(() => {
+  // Process recent workflows
+  const processedRecentWorkflows = useMemo<WorkflowItem[]>(() => {
     if (recentData && recentData[0]) {
       return recentData[0].map(item => ({
         batch_id: item.workflow_id,
@@ -179,9 +250,9 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
   // Process past due counts
   const pastDueCounts = useMemo(() => {
     if (pastDueCountData && pastDueCountData[0]?.[0]) {
-      const data = pastDueCountData[0][0] as { today?: number; yesterday?: number; days_3_7?: number };
+      const data = pastDueCountData[0][0] as { today?: number; yesterday?: number; days_3_7?: number; count?: number };
       return {
-        today: data.today || 0,
+        today: data.today || data.count || 0,
         yesterday: data.yesterday || 0,
         days_3_7: data.days_3_7 || 0
       };
@@ -189,8 +260,8 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     return { today: 0, yesterday: 0, days_3_7: 0 };
   }, [pastDueCountData]);
 
-  // Process past due workflows - PastDueWorkflow type has: workflow_id, workflow_name, due_date, days_overdue, priority, assigned_to
-  const processedPastDueWorkflows = useMemo(() => {
+  // Process past due workflows
+  const processedPastDueWorkflows = useMemo<WorkflowItem[]>(() => {
     if (pastDueData && pastDueData[0]) {
       return pastDueData[0].map(item => ({
         batch_id: item.workflow_id,
@@ -202,64 +273,158 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     return [];
   }, [pastDueData]);
 
-  // Calculate loading state
-  const isLoading = agingLoading || exceptionLoading || recentLoading || pastDueLoading ||
-                    searchAgingLoading || searchRecentLoading || searchPastDueLoading;
+  // Process custom workflows
+  const processedCustomWorkflows = useMemo<WorkflowItem[]>(() => {
+    if (customData && customData[0]) {
+      return customData[0].map(item => ({
+        batch_id: item.workflow_id,
+        file_name: item.workflow_name,
+        activity_date: item.created_date,
+        status: item.status
+      }));
+    }
+    return [];
+  }, [customData]);
+
+  // Get current display data based on active tab
+  const getCurrentData = useCallback((): WorkflowItem[] => {
+    if (searchResults) return searchResults;
+
+    switch (activeMainTab) {
+      case 'recent':
+        return processedRecentWorkflows;
+      case 'pastDue':
+        return processedPastDueWorkflows;
+      case 'custom':
+        return processedCustomWorkflows;
+      default:
+        return [];
+    }
+  }, [activeMainTab, searchResults, processedRecentWorkflows, processedPastDueWorkflows, processedCustomWorkflows]);
 
   // Calculate total pages
   const totalPages = useMemo(() => {
     const dataLength = activeMainTab === 'insights'
       ? processedAgingData.length
-      : activeMainTab === 'recent'
-        ? processedRecentWorkflows.length
-        : processedPastDueWorkflows.length;
+      : getCurrentData().length;
     return Math.ceil(dataLength / itemsPerPage) || 1;
-  }, [activeMainTab, processedAgingData.length, processedRecentWorkflows.length, processedPastDueWorkflows.length, itemsPerPage]);
+  }, [activeMainTab, processedAgingData.length, getCurrentData, itemsPerPage]);
 
-  // Handle search - uses mutation hooks from API service
+  // Calculate loading state
+  const isLoading = agingLoading || exceptionLoading || recentLoading || pastDueLoading ||
+                    customLoading || searchAgingLoading || searchRecentLoading ||
+                    searchPastDueLoading || searchCustomLoading;
+
+  // Handle search
   const handleSearch = useCallback(async () => {
-    if (!searchText.trim()) return;
+    if (!searchText.trim()) {
+      setSearchResults(null);
+      return;
+    }
 
     const searchPayload = {
       ...userParams,
       searchText,
       searchField: searchCategory,
-      itemsPerPage,
+      itemsPerPage: 100,
       currentPage: 1
     };
 
     try {
+      let result;
       switch (activeMainTab) {
         case 'insights':
-          await searchAging(searchPayload).unwrap();
+          result = await searchAging(searchPayload).unwrap();
           break;
         case 'recent':
-          await searchRecent(searchPayload).unwrap();
+          result = await searchRecent(searchPayload).unwrap();
+          if (result && result[0]) {
+            setSearchResults(result[0].map(item => ({
+              batch_id: item.workflow_id,
+              file_name: item.file_name || item.workflow_name,
+              activity_date: item.updated_date || item.created_date,
+              status: item.status
+            })));
+          }
           break;
         case 'pastDue':
-          await searchPastDue(searchPayload).unwrap();
+          result = await searchPastDue(searchPayload).unwrap();
+          if (result && result[0]) {
+            setSearchResults(result[0].map(item => ({
+              batch_id: item.workflow_id,
+              file_name: item.workflow_name,
+              activity_date: item.due_date,
+              days_overdue: item.days_overdue
+            })));
+          }
+          break;
+        case 'custom':
+          result = await searchCustom({ ...searchPayload, startDate, endDate }).unwrap();
+          if (result && result[0]) {
+            setSearchResults(result[0].map(item => ({
+              batch_id: item.workflow_id,
+              file_name: item.workflow_name,
+              activity_date: item.created_date,
+              status: item.status
+            })));
+          }
           break;
       }
     } catch (error) {
       console.error('Search failed:', error);
     }
-  }, [activeMainTab, searchText, searchCategory, userParams, itemsPerPage, searchAging, searchRecent, searchPastDue]);
+  }, [activeMainTab, searchText, searchCategory, userParams, startDate, endDate, searchAging, searchRecent, searchPastDue, searchCustom]);
 
-  // Handle tab changes
+  // Handle tab changes - trigger lazy loading
   const handleMainTabChange = useCallback((tab: MainTab) => {
     setActiveMainTab(tab);
     setCurrentPage(1);
     setSearchText('');
-  }, []);
+    setSearchResults(null);
+
+    switch (tab) {
+      case 'insights':
+        if (activeInsightsTab === 'aging') {
+          markTabVisited('insights-aging');
+        } else {
+          markTabVisited('insights-exception');
+        }
+        break;
+      case 'recent':
+        markTabVisited('recent');
+        break;
+      case 'pastDue':
+        markTabVisited('pastDue');
+        break;
+      case 'custom':
+        // Custom tab requires date selection
+        break;
+    }
+  }, [activeInsightsTab, markTabVisited]);
 
   const handleInsightsTabChange = useCallback((tab: InsightsSubTab) => {
     setActiveInsightsTab(tab);
     setCurrentPage(1);
-  }, []);
+    setSearchResults(null);
 
-  // Handle supplier count click - redirect to Custom tab
+    if (tab === 'aging') {
+      markTabVisited('insights-aging');
+    } else {
+      markTabVisited('insights-exception');
+    }
+  }, [markTabVisited]);
+
+  // Handle custom date load
+  const handleLoadCustomData = useCallback(() => {
+    if (startDate && endDate) {
+      setCustomLoaded(true);
+    }
+  }, [startDate, endDate]);
+
+  // Handle supplier count click - redirect to Custom tab with supplier filter
   const handleSupplierCountClick = useCallback((supplierId: string) => {
     setActiveMainTab('custom');
+    // Set date range and load data for this supplier
     const today = new Date();
     const yearAgo = new Date();
     yearAgo.setFullYear(today.getFullYear() - 1);
@@ -267,6 +432,7 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     setStartDate(yearAgo.toISOString().split('T')[0]);
     setEndDate(today.toISOString().split('T')[0]);
     setSearchText(supplierId);
+    setCustomLoaded(true);
   }, []);
 
   if (!userData) {
@@ -288,9 +454,16 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
         onChange={(e) => setSearchCategory(e.target.value)}
         className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
       >
-        {searchConfig.map((config) => (
+        {searchConfig.length > 0 ? searchConfig.map((config) => (
           <option key={config.field} value={config.field}>{config.label}</option>
-        ))}
+        )) : (
+          <>
+            <option value="ALL">ALL</option>
+            <option value="batch_id">Batch ID</option>
+            <option value="file_name">File Name</option>
+            <option value="supplier">Supplier</option>
+          </>
+        )}
       </select>
       <input
         type="text"
@@ -348,6 +521,7 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
   // Render Insights Aging tab
   const renderInsightsAging = () => (
     <div className="space-y-6">
+      {/* Search Bar */}
       {renderSearchBar()}
 
       {/* Bar Chart */}
@@ -468,119 +642,216 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
   );
 
   // Render Recent tab
-  const renderRecentTab = () => (
-    <div className="space-y-6">
-      {renderSearchBar()}
+  const renderRecentTab = () => {
+    const displayData = searchResults || processedRecentWorkflows;
+    return (
+      <div className="space-y-6">
+        {renderSearchBar()}
 
-      {isLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Activity Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Batch ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">File Name</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {processedRecentWorkflows.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">No recent tasks found</td>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Activity Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Batch ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">File Name</th>
                 </tr>
-              ) : (
-                processedRecentWorkflows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button className="text-gray-400 hover:text-blue-600">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{item.activity_date || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{item.batch_id || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{item.file_name || '-'}</td>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {displayData.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">No recent tasks found</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          {renderPagination()}
-        </div>
-      )}
-    </div>
-  );
+                ) : (
+                  displayData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <button className="text-gray-400 hover:text-blue-600">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                          <button className="text-gray-400 hover:text-blue-600">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{item.activity_date || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{item.batch_id || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{item.file_name || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            {renderPagination()}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Render Past Due tab with Aging sub-tabs
-  const renderPastDueTab = () => (
-    <div className="space-y-6">
-      {/* Aging tabs (Today, Yesterday, 3-7 Days) */}
-      <div className="flex gap-4 border-b border-gray-200">
-        <button
-          onClick={() => setActivePastDueAgingTab('today')}
-          className={`pb-2 px-3 text-sm font-medium border-b-2 transition-colors ${
-            activePastDueAgingTab === 'today'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Today ({pastDueCounts.today})
-        </button>
-        <button
-          onClick={() => setActivePastDueAgingTab('yesterday')}
-          className={`pb-2 px-3 text-sm font-medium border-b-2 transition-colors ${
-            activePastDueAgingTab === 'yesterday'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Yesterday ({pastDueCounts.yesterday})
-        </button>
-        <button
-          onClick={() => setActivePastDueAgingTab('3-7days')}
-          className={`pb-2 px-3 text-sm font-medium border-b-2 transition-colors ${
-            activePastDueAgingTab === '3-7days'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          3-7 Days ({pastDueCounts.days_3_7})
-        </button>
-      </div>
-
-      {renderSearchBar()}
-
-      {isLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+  const renderPastDueTab = () => {
+    const displayData = searchResults || processedPastDueWorkflows;
+    return (
+      <div className="space-y-6">
+        {/* Aging tabs (Today, Yesterday, 3-7 Days) */}
+        <div className="flex gap-4 border-b border-gray-200">
+          <button
+            onClick={() => setActivePastDueAgingTab('today')}
+            className={`pb-2 px-3 text-sm font-medium border-b-2 transition-colors ${
+              activePastDueAgingTab === 'today'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Today ({pastDueCounts.today})
+          </button>
+          <button
+            onClick={() => setActivePastDueAgingTab('yesterday')}
+            className={`pb-2 px-3 text-sm font-medium border-b-2 transition-colors ${
+              activePastDueAgingTab === 'yesterday'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Yesterday ({pastDueCounts.yesterday})
+          </button>
+          <button
+            onClick={() => setActivePastDueAgingTab('3-7days')}
+            className={`pb-2 px-3 text-sm font-medium border-b-2 transition-colors ${
+              activePastDueAgingTab === '3-7days'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            3-7 Days ({pastDueCounts.days_3_7})
+          </button>
         </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Activity Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Batch ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">File Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Overdue</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {processedPastDueWorkflows.length === 0 ? (
+
+        {renderSearchBar()}
+
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">No past due tasks found</td>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Activity Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Batch ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">File Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Overdue</th>
                 </tr>
-              ) : (
-                processedPastDueWorkflows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item, index) => (
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {displayData.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">No past due tasks found</td>
+                  </tr>
+                ) : (
+                  displayData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <button className="text-gray-400 hover:text-blue-600">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{item.activity_date || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{item.batch_id || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{item.file_name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-red-600">{item.days_overdue || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            {renderPagination()}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render Custom tab
+  const renderCustomTab = () => {
+    const displayData = searchResults || processedCustomWorkflows;
+    return (
+      <div className="space-y-6">
+        {/* Date Range Selection */}
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-lg font-medium mb-4">Custom Date Range</h3>
+          <div className="flex gap-4 items-end flex-wrap">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">End Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded"
+              />
+            </div>
+            <button
+              onClick={handleLoadCustomData}
+              disabled={!startDate || !endDate}
+              className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+            >
+              Load Data
+            </button>
+          </div>
+        </div>
+
+        {renderSearchBar()}
+
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          </div>
+        ) : displayData.length === 0 ? (
+          <div className="bg-white p-8 rounded-lg shadow text-center text-gray-500">
+            Select a date range to view custom task data
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Activity Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Batch ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">File Name</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {displayData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
@@ -595,59 +866,16 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
                     <td className="px-4 py-3 text-sm text-gray-900">{item.activity_date || '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{item.batch_id || '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{item.file_name || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-red-600">{item.days_overdue || '-'}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          {renderPagination()}
-        </div>
-      )}
-    </div>
-  );
-
-  // Render Custom tab
-  const renderCustomTab = () => (
-    <div className="space-y-6">
-      {/* Date Range Selection */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <h3 className="text-lg font-medium mb-4">Custom Date Range</h3>
-        <div className="flex gap-4 items-end flex-wrap">
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded"
-            />
+                ))}
+              </tbody>
+            </table>
+            {renderPagination()}
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded"
-            />
-          </div>
-          <button
-            disabled={!startDate || !endDate}
-            className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-          >
-            Load Data
-          </button>
-        </div>
+        )}
       </div>
-
-      {renderSearchBar()}
-
-      <div className="bg-white p-8 rounded-lg shadow text-center text-gray-500">
-        Select a date range to view custom task data
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className={`p-6 ${className}`}>

@@ -14,6 +14,13 @@ import { PasswordSetupPage } from '../pages/PasswordSetupPage';
 import { HomePage } from '../pages/HomePage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
+// Features
+import { BusinessStarterView } from '../features/business-starter';
+import { BusinessAppsView } from '../features/business-apps';
+import { BusinessHomeView } from '../features/business-home';
+import { BusinessTasksView } from '../features/business-tasks';
+import { NavigationShellView } from '../features/navigation';
+
 /**
  * Protected route wrapper
  */
@@ -53,12 +60,14 @@ export const AppRouter: React.FC = () => {
       <Route path="/password-setup" element={<PasswordSetupPage />} />
 
       {/* Protected Routes */}
-      <Route path="/BusinessHomeViews" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/BusinessTasks" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/BusinessApps" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/BusinessStarter" element={<ProtectedRoute><BusinessStarterView /></ProtectedRoute>} />
+      <Route path="/BusinessHomeViews" element={<ProtectedRoute><NavigationShellView><BusinessHomeView /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/BusinessTasks" element={<ProtectedRoute><NavigationShellView><BusinessTasksView /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/BusinessApps" element={<ProtectedRoute><NavigationShellView><BusinessAppsView /></NavigationShellView></ProtectedRoute>} />
       <Route path="/Admin" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/Setting" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/SLADashBoard" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/ServiceAnalytics" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
 
       {/* Terms of Service */}

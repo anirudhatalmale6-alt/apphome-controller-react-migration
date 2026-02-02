@@ -7,10 +7,18 @@ import { authenticationApi } from '../features/authentication/api/authentication
 import { navigationApi } from '../features/navigation/api/navigationApi';
 import { userProfileApi } from '../features/user-profile/api/userProfileApi';
 import { applicationShellApi } from '../features/application-shell/api/applicationShellApi';
+import { businessStarterApi } from '../features/business-starter/api/businessStarterApi';
+import { businessAppsApi } from '../features/business-apps/api/businessAppsApi';
+import { businessHomeApi } from '../features/business-home/api/businessHomeApi';
+import { businessTasksApi } from '../features/business-tasks/api/businessTasksApi';
 import authReducer from '../features/authentication/store/authSlice';
 import navigationReducer from '../features/navigation/store/navigationSlice';
 import userProfileReducer from '../features/user-profile/store/userProfileSlice';
 import applicationShellReducer from '../features/application-shell/store/applicationShellSlice';
+import businessStarterReducer from '../features/business-starter/store/businessStarterSlice';
+import businessAppsReducer from '../features/business-apps/store/businessAppsSlice';
+import businessHomeReducer from '../features/business-home/store/businessHomeSlice';
+import businessTasksReducer from '../features/business-tasks/store/businessTasksSlice';
 
 /**
  * Configured Redux store with RTK Query APIs
@@ -23,12 +31,20 @@ export const store = configureStore({
     navigation: navigationReducer,
     userProfile: userProfileReducer,
     applicationShell: applicationShellReducer,
+    businessStarter: businessStarterReducer,
+    businessApps: businessAppsReducer,
+    businessHome: businessHomeReducer,
+    businessTasks: businessTasksReducer,
 
     // RTK Query APIs
     [authenticationApi.reducerPath]: authenticationApi.reducer,
     [navigationApi.reducerPath]: navigationApi.reducer,
     [userProfileApi.reducerPath]: userProfileApi.reducer,
     [applicationShellApi.reducerPath]: applicationShellApi.reducer,
+    [businessStarterApi.reducerPath]: businessStarterApi.reducer,
+    [businessAppsApi.reducerPath]: businessAppsApi.reducer,
+    [businessHomeApi.reducerPath]: businessHomeApi.reducer,
+    [businessTasksApi.reducerPath]: businessTasksApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -40,7 +56,11 @@ export const store = configureStore({
       authenticationApi.middleware,
       navigationApi.middleware,
       userProfileApi.middleware,
-      applicationShellApi.middleware
+      applicationShellApi.middleware,
+      businessStarterApi.middleware,
+      businessAppsApi.middleware,
+      businessHomeApi.middleware,
+      businessTasksApi.middleware
     ),
   devTools: import.meta.env.DEV,
 });

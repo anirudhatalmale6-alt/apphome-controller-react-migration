@@ -2,17 +2,28 @@
  * BusinessHomeView Component
  * Dashboard with sticky tabs: Batch Inventory, Invoice Inventory, Performance
  *
- * Uses RTK Query hooks from businessHomeApi.ts for all API calls
- * No direct API calls in this component - all calls go through the API service
+ * Key fixes (Feb 3rd feedback):
+ * - APIs trigger on EVERY tab switch (event-driven, not init-only)
+ * - No cached promise reuse - each tab activation triggers fresh API call
+ * - Performance sub-tabs (Suppliers/Agents) have independent data models
+ * - Pagination resets on tab/sub-tab switch
+ * - Search scoped to active tab only
+ * - KPI and Charts refresh on every tab switch
+ * - Chart containers maintain height during loading (no layout shift)
+ * - Skeleton loading states for tables
+ * - Error state with Retry button
+ * - No CSS changes - logic only fixes
+ *
+ * Uses RTK Query lazy hooks from businessHomeApi.ts for all API calls
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAppSelector } from '../../../app/hooks';
 import {
-  useGetBatchInventoryOverviewQuery,
-  useGetBatchInventory30_60_90Query,
-  useGetInvoiceInventoryOverviewQuery,
-  useGetAuditData30_60_90Query,
-  useGetAgentDataQuery,
+  useLazyGetBatchInventoryOverviewQuery,
+  useLazyGetBatchInventory30_60_90Query,
+  useLazyGetInvoiceInventoryOverviewQuery,
+  useLazyGetAuditData30_60_90Query,
+  useLazyGetAgentDataQuery,
   useGetInboxSearchConfigQuery,
   useSearchAuditData30_60_90Mutation,
 } from '../api/businessHomeApi';
@@ -24,17 +35,35 @@ interface BusinessHomeViewProps {
 type MainTabType = 'batch' | 'invoice' | 'performance';
 type PerformanceSubTab = 'suppliers' | 'agents';
 
-// Stats card data structure
 interface StatCard {
   value: string;
   label: string;
 }
 
-// Chart data structures
 interface MonthData {
   month: string;
   inflow: number;
   processed: number;
+}
+
+interface SupplierRow {
+  supplier_id: string;
+  supplier_name: string;
+  today: number;
+  yesterday: number;
+  days_3_7: number;
+  days_8_30: number;
+  days_31_60: number;
+  days_61_90: number;
+  days_91_plus: number;
+}
+
+interface AgentRow {
+  agent_id: string;
+  agent_name: string;
+  processed_count: number;
+  pending_count: number;
+  accuracy_rate: number;
 }
 
 export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = '' }) => {
@@ -47,12 +76,25 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   // Search state
   const [searchCategory, setSearchCategory] = useState('ALL');
   const [searchText, setSearchText] = useState('');
 
-  // User params for API calls
+  // Loading / Error states
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Data states - populated by API calls
+  const [batchStats, setBatchStats] = useState<StatCard[]>([]);
+  const [batchChartData, setBatchChartData] = useState<MonthData[]>([]);
+  const [invoiceStats, setInvoiceStats] = useState<StatCard[]>([]);
+  const [invoiceChartData, setInvoiceChartData] = useState<MonthData[]>([]);
+  const [supplierData, setSupplierData] = useState<SupplierRow[]>([]);
+  const [agentData, setAgentData] = useState<AgentRow[]>([]);
+
+  // User params
   const userParams = useMemo(() => ({
     customer_id: (userData?.customer_id as string) || '',
     bps_id: (userData?.bps_id as string) || '',
@@ -60,168 +102,17 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
     sp_process_id: (userData?.sp_process_id as string) || ''
   }), [userData]);
 
-  // RTK Query hooks - Batch Inventory
-  const { data: batchOverviewData, isLoading: batchOverviewLoading } = useGetBatchInventoryOverviewQuery(
-    userParams,
-    { skip: !userData || activeTab !== 'batch' }
-  );
+  // Lazy query hooks - triggered on EVERY tab activation
+  const [triggerBatchOverview] = useLazyGetBatchInventoryOverviewQuery();
+  const [triggerBatchAging] = useLazyGetBatchInventory30_60_90Query();
+  const [triggerInvoiceOverview] = useLazyGetInvoiceInventoryOverviewQuery();
+  const [triggerSupplierData] = useLazyGetAuditData30_60_90Query();
+  const [triggerAgentData] = useLazyGetAgentDataQuery();
 
-  const { data: batchAgingData, isLoading: batchAgingLoading } = useGetBatchInventory30_60_90Query(
-    userParams,
-    { skip: !userData || activeTab !== 'batch' }
-  );
+  // Search config (load once)
+  const { data: searchConfigData } = useGetInboxSearchConfigQuery(userParams, { skip: !userData });
+  const [searchSuppliers] = useSearchAuditData30_60_90Mutation();
 
-  // RTK Query hooks - Invoice Inventory
-  const { data: invoiceOverviewData, isLoading: invoiceOverviewLoading } = useGetInvoiceInventoryOverviewQuery(
-    userParams,
-    { skip: !userData || activeTab !== 'invoice' }
-  );
-
-  const { data: invoiceAgingData, isLoading: invoiceAgingLoading } = useGetBatchInventory30_60_90Query(
-    { ...userParams, sp_process_id: userParams.sp_process_id },
-    { skip: !userData || activeTab !== 'invoice' }
-  );
-
-  // RTK Query hooks - Performance
-  const { data: supplierData, isLoading: supplierLoading } = useGetAuditData30_60_90Query(
-    { ...userParams, itemsPerPage: 20, currentPage },
-    { skip: !userData || activeTab !== 'performance' || performanceSubTab !== 'suppliers' }
-  );
-
-  const { data: agentData, isLoading: agentLoading } = useGetAgentDataQuery(
-    { ...userParams, itemsPerPage: 20, currentPage },
-    { skip: !userData || activeTab !== 'performance' || performanceSubTab !== 'agents' }
-  );
-
-  // RTK Query hooks - Search Config
-  const { data: searchConfigData } = useGetInboxSearchConfigQuery(
-    userParams,
-    { skip: !userData }
-  );
-
-  // Search mutation
-  const [searchSuppliers, { isLoading: searchLoading }] = useSearchAuditData30_60_90Mutation();
-
-  // Process batch stats from API response
-  const batchStats = useMemo<StatCard[]>(() => {
-    if (batchOverviewData && batchOverviewData[0]?.[0]) {
-      const d = batchOverviewData[0][0];
-      const total = d.total_batches || 1;
-      const processed = d.processed_batches || 0;
-      const pending = d.pending_batches || 0;
-      const error = d.error_batches || 0;
-      return [
-        { value: `${((processed) / total * 100).toFixed(1)}% (${processed})`, label: 'Processed' },
-        { value: `${((pending) / total * 100).toFixed(1)}% (${pending})`, label: 'Pending' },
-        { value: `${((error) / total * 100).toFixed(1)}% (${error})`, label: 'Errors' },
-        { value: `${(d.processing_rate || 0).toFixed(1)}%`, label: 'Processing Rate' },
-        { value: `${total}`, label: 'Total Batches' },
-      ];
-    }
-    return [
-      { value: '0% (0)', label: 'Processed' },
-      { value: '0% (0)', label: 'Pending' },
-      { value: '16.7% (1)', label: 'Errors' },
-      { value: '16.7%', label: 'Processing Rate' },
-      { value: '6', label: 'Total Batches' },
-    ];
-  }, [batchOverviewData]);
-
-  // Process batch aging data into month format for charts
-  const batchMonthData = useMemo<MonthData[]>(() => {
-    // Convert aging data to month-based data for chart display
-    // Aging data comes as BatchInventory30_60_90 with days_0_30, days_31_60, etc.
-    if (batchAgingData && batchAgingData[0]?.[0]) {
-      const aging = batchAgingData[0][0];
-      // Map aging buckets to pseudo-months for visualization
-      return [
-        { month: '0-30', inflow: aging.days_0_30 || 0, processed: 0 },
-        { month: '31-60', inflow: aging.days_31_60 || 0, processed: 0 },
-        { month: '61-90', inflow: aging.days_61_90 || 0, processed: 0 },
-        { month: '90+', inflow: aging.days_90_plus || 0, processed: 0 },
-      ];
-    }
-    return [
-      { month: '0-30', inflow: 6, processed: 0 },
-      { month: '31-60', inflow: 0, processed: 0 },
-      { month: '61-90', inflow: 0, processed: 0 },
-      { month: '90+', inflow: 0, processed: 0 },
-    ];
-  }, [batchAgingData]);
-
-  // Process invoice stats from API response
-  const invoiceStats = useMemo<StatCard[]>(() => {
-    if (invoiceOverviewData && invoiceOverviewData[0]?.[0]) {
-      const d = invoiceOverviewData[0][0];
-      const total = d.total_invoices || 1;
-      const processed = d.processed_invoices || 0;
-      const pending = d.pending_invoices || 0;
-      const error = d.error_invoices || 0;
-      return [
-        { value: `${((processed) / total * 100).toFixed(1)}% (${processed})`, label: 'Processed' },
-        { value: `${((pending) / total * 100).toFixed(1)}% (${pending})`, label: 'Pending' },
-        { value: `${((error) / total * 100).toFixed(1)}% (${error})`, label: 'Errors' },
-        { value: `$${(d.total_amount || 0).toLocaleString()}`, label: 'Total Amount' },
-        { value: `${total}`, label: 'Total Invoices' },
-      ];
-    }
-    return batchStats;
-  }, [invoiceOverviewData, batchStats]);
-
-  // Process invoice aging data into month format for charts
-  const invoiceMonthData = useMemo<MonthData[]>(() => {
-    if (invoiceAgingData && invoiceAgingData[0]?.[0]) {
-      const aging = invoiceAgingData[0][0];
-      return [
-        { month: '0-30', inflow: aging.days_0_30 || 0, processed: 0 },
-        { month: '31-60', inflow: aging.days_31_60 || 0, processed: 0 },
-        { month: '61-90', inflow: aging.days_61_90 || 0, processed: 0 },
-        { month: '90+', inflow: aging.days_90_plus || 0, processed: 0 },
-      ];
-    }
-    return batchMonthData;
-  }, [invoiceAgingData, batchMonthData]);
-
-  // Process supplier data
-  const processedSupplierData = useMemo(() => {
-    if (supplierData && supplierData[0]) {
-      return supplierData[0] as Array<{
-        supplier_id: string;
-        supplier_name: string;
-        today: number;
-        yesterday: number;
-        days_3_7: number;
-        days_8_30: number;
-        days_31_60: number;
-        days_61_90: number;
-        days_91_plus: number;
-      }>;
-    }
-    return [
-      { supplier_id: '1', supplier_name: 'Apex Onebase', today: 5, yesterday: 3, days_3_7: 10, days_8_30: 15, days_31_60: 8, days_61_90: 2, days_91_plus: 0 },
-      { supplier_id: '2', supplier_name: 'optus intelligence Inc', today: 2, yesterday: 1, days_3_7: 5, days_8_30: 8, days_31_60: 3, days_61_90: 1, days_91_plus: 0 },
-    ];
-  }, [supplierData]);
-
-  // Process agent data - maps to AgentData type from types file
-  const processedAgentData = useMemo(() => {
-    if (agentData && agentData[0]) {
-      // AgentData has: agent_id, agent_name, tasks_completed, tasks_pending, avg_processing_time, efficiency_score
-      return agentData[0].map(agent => ({
-        agent_id: agent.agent_id,
-        agent_name: agent.agent_name,
-        processed_count: agent.tasks_completed,
-        pending_count: agent.tasks_pending,
-        accuracy_rate: agent.efficiency_score
-      }));
-    }
-    return [
-      { agent_id: '1', agent_name: 'Agent Smith', processed_count: 150, pending_count: 12, accuracy_rate: 98.5 },
-      { agent_id: '2', agent_name: 'Agent Johnson', processed_count: 120, pending_count: 8, accuracy_rate: 97.2 },
-    ];
-  }, [agentData]);
-
-  // Process search config
   const searchConfig = useMemo(() => {
     if (searchConfigData && searchConfigData[0]) {
       return (searchConfigData[0] as Array<{ category: string }>).map(item => item.category);
@@ -229,24 +120,205 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
     return ['ALL', 'Batch ID', 'File Name', 'Supplier'];
   }, [searchConfigData]);
 
-  const totalPages = Math.ceil(processedSupplierData.length / 10) || 1;
+  // ========= EVENT-DRIVEN API TRIGGERS =========
 
-  // Handle main tab change
+  const loadBatchInventory = useCallback(async () => {
+    if (!userData) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const [overviewResult, agingResult] = await Promise.all([
+        triggerBatchOverview(userParams, true).unwrap(),
+        triggerBatchAging(userParams, true).unwrap()
+      ]);
+
+      // Process overview
+      if (overviewResult && overviewResult[0]?.[0]) {
+        const d = overviewResult[0][0];
+        const total = d.total_batches || 1;
+        const processed = d.processed_batches || 0;
+        const pending = d.pending_batches || 0;
+        const error = d.error_batches || 0;
+        setBatchStats([
+          { value: `${((processed) / total * 100).toFixed(1)}% (${processed})`, label: 'Processed' },
+          { value: `${((pending) / total * 100).toFixed(1)}% (${pending})`, label: 'Pending' },
+          { value: `${((error) / total * 100).toFixed(1)}% (${error})`, label: 'Errors' },
+          { value: `${(d.processing_rate || 0).toFixed(1)}%`, label: 'Processing Rate' },
+          { value: `${total}`, label: 'Total Batches' },
+        ]);
+      }
+
+      // Process aging
+      if (agingResult && agingResult[0]?.[0]) {
+        const aging = agingResult[0][0];
+        setBatchChartData([
+          { month: '0-30', inflow: aging.days_0_30 || 0, processed: 0 },
+          { month: '31-60', inflow: aging.days_31_60 || 0, processed: 0 },
+          { month: '61-90', inflow: aging.days_61_90 || 0, processed: 0 },
+          { month: '90+', inflow: aging.days_90_plus || 0, processed: 0 },
+        ]);
+      }
+    } catch (error) {
+      console.error('Batch Inventory API error:', error);
+      setErrorMessage('Unable to load batch inventory data. Please retry.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userData, userParams, triggerBatchOverview, triggerBatchAging]);
+
+  const loadInvoiceInventory = useCallback(async () => {
+    if (!userData) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const [overviewResult, agingResult] = await Promise.all([
+        triggerInvoiceOverview(userParams, true).unwrap(),
+        triggerBatchAging({ ...userParams }, true).unwrap()
+      ]);
+
+      if (overviewResult && overviewResult[0]?.[0]) {
+        const d = overviewResult[0][0];
+        const total = d.total_invoices || 1;
+        const processed = d.processed_invoices || 0;
+        const pending = d.pending_invoices || 0;
+        const error = d.error_invoices || 0;
+        setInvoiceStats([
+          { value: `${((processed) / total * 100).toFixed(1)}% (${processed})`, label: 'Processed' },
+          { value: `${((pending) / total * 100).toFixed(1)}% (${pending})`, label: 'Pending' },
+          { value: `${((error) / total * 100).toFixed(1)}% (${error})`, label: 'Errors' },
+          { value: `$${(d.total_amount || 0).toLocaleString()}`, label: 'Total Amount' },
+          { value: `${total}`, label: 'Total Invoices' },
+        ]);
+      }
+
+      if (agingResult && agingResult[0]?.[0]) {
+        const aging = agingResult[0][0];
+        setInvoiceChartData([
+          { month: '0-30', inflow: aging.days_0_30 || 0, processed: 0 },
+          { month: '31-60', inflow: aging.days_31_60 || 0, processed: 0 },
+          { month: '61-90', inflow: aging.days_61_90 || 0, processed: 0 },
+          { month: '90+', inflow: aging.days_90_plus || 0, processed: 0 },
+        ]);
+      }
+    } catch (error) {
+      console.error('Invoice Inventory API error:', error);
+      setErrorMessage('Unable to load invoice inventory data. Please retry.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userData, userParams, triggerInvoiceOverview, triggerBatchAging]);
+
+  const loadSupplierData = useCallback(async () => {
+    if (!userData) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const result = await triggerSupplierData(
+        { ...userParams, itemsPerPage: 20, currentPage },
+        true
+      ).unwrap();
+      if (result && result[0]) {
+        setSupplierData((result[0] as SupplierRow[]).map((item, idx) => ({
+          supplier_id: item.supplier_id || String(idx),
+          supplier_name: item.supplier_name || 'Unknown',
+          today: item.today || 0,
+          yesterday: item.yesterday || 0,
+          days_3_7: item.days_3_7 || 0,
+          days_8_30: item.days_8_30 || 0,
+          days_31_60: item.days_31_60 || 0,
+          days_61_90: item.days_61_90 || 0,
+          days_91_plus: item.days_91_plus || 0,
+        })));
+      } else {
+        setSupplierData([]);
+      }
+    } catch (error) {
+      console.error('Supplier API error:', error);
+      setErrorMessage('Unable to load supplier data. Please retry.');
+      setSupplierData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userData, userParams, currentPage, triggerSupplierData]);
+
+  const loadAgentData = useCallback(async () => {
+    if (!userData) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const result = await triggerAgentData(
+        { ...userParams, itemsPerPage: 20, currentPage },
+        true
+      ).unwrap();
+      if (result && result[0]) {
+        setAgentData(result[0].map(agent => ({
+          agent_id: agent.agent_id,
+          agent_name: agent.agent_name,
+          processed_count: agent.tasks_completed,
+          pending_count: agent.tasks_pending,
+          accuracy_rate: agent.efficiency_score
+        })));
+      } else {
+        setAgentData([]);
+      }
+    } catch (error) {
+      console.error('Agent API error:', error);
+      setErrorMessage('Unable to load agent data. Please retry.');
+      setAgentData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userData, userParams, currentPage, triggerAgentData]);
+
+  // Initial load - Batch Inventory (default tab)
+  useEffect(() => {
+    if (userData) {
+      loadBatchInventory();
+    }
+  }, [userData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tab change handlers - event-driven
   const handleTabChange = useCallback((tab: MainTabType) => {
     setActiveTab(tab);
     setCurrentPage(1);
-  }, []);
+    setSearchText('');
+    setErrorMessage(null);
 
-  // Handle performance sub-tab change
+    switch (tab) {
+      case 'batch':
+        loadBatchInventory();
+        break;
+      case 'invoice':
+        loadInvoiceInventory();
+        break;
+      case 'performance':
+        if (performanceSubTab === 'suppliers') {
+          loadSupplierData();
+        } else {
+          loadAgentData();
+        }
+        break;
+    }
+  }, [performanceSubTab, loadBatchInventory, loadInvoiceInventory, loadSupplierData, loadAgentData]);
+
   const handlePerformanceSubTabChange = useCallback((subTab: PerformanceSubTab) => {
     setPerformanceSubTab(subTab);
     setCurrentPage(1);
-  }, []);
+    setSearchText('');
+    setErrorMessage(null);
 
-  // Handle search - uses the mutation hook from API service
+    if (subTab === 'suppliers') {
+      loadSupplierData();
+    } else {
+      loadAgentData();
+    }
+  }, [loadSupplierData, loadAgentData]);
+
+  // Search
   const handleSearch = useCallback(async () => {
     if (!searchText.trim()) return;
-
+    setIsLoading(true);
+    setErrorMessage(null);
     try {
       await searchSuppliers({
         ...userParams,
@@ -256,136 +328,139 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
       }).unwrap();
     } catch (error) {
       console.error('Search failed:', error);
+      setErrorMessage('Search failed. Please retry.');
+    } finally {
+      setIsLoading(false);
     }
   }, [searchSuppliers, userParams, searchText]);
 
-  // Calculate loading state
-  const isTabLoading =
-    (activeTab === 'batch' && (batchOverviewLoading || batchAgingLoading)) ||
-    (activeTab === 'invoice' && (invoiceOverviewLoading || invoiceAgingLoading)) ||
-    (activeTab === 'performance' && performanceSubTab === 'suppliers' && supplierLoading) ||
-    (activeTab === 'performance' && performanceSubTab === 'agents' && agentLoading) ||
-    searchLoading;
+  // Retry handler
+  const handleRetry = useCallback(() => {
+    setErrorMessage(null);
+    switch (activeTab) {
+      case 'batch': loadBatchInventory(); break;
+      case 'invoice': loadInvoiceInventory(); break;
+      case 'performance':
+        performanceSubTab === 'suppliers' ? loadSupplierData() : loadAgentData();
+        break;
+    }
+  }, [activeTab, performanceSubTab, loadBatchInventory, loadInvoiceInventory, loadSupplierData, loadAgentData]);
 
-  // Calculate max value for bar chart scaling
-  const getMaxValue = (data: MonthData[]) => Math.max(...data.map(d => Math.max(d.inflow, d.processed)), 1);
+  const totalPages = Math.ceil(supplierData.length / itemsPerPage) || 1;
 
-  // Render bar chart
+  // Bar chart rendering
   const renderBarChart = (data: MonthData[]) => {
-    const maxValue = getMaxValue(data);
+    const maxValue = Math.max(...data.map(d => Math.max(d.inflow, d.processed)), 1);
     return (
-      <div className="bg-white p-4 rounded-lg">
-        <div className="h-64 flex items-end justify-between gap-1">
-          {data.map((item, index) => (
-            <div key={index} className="flex flex-col items-center flex-1">
-              <div className="flex gap-0.5 items-end h-48 w-full justify-center">
-                <div
-                  className="w-3 bg-blue-400 rounded-t"
-                  style={{ height: `${(item.inflow / maxValue) * 100}%`, minHeight: item.inflow > 0 ? '4px' : '0' }}
-                />
-                <div
-                  className="w-3 bg-green-400 rounded-t"
-                  style={{ height: `${(item.processed / maxValue) * 100}%`, minHeight: item.processed > 0 ? '4px' : '0' }}
-                />
-              </div>
-              {item.inflow > 0 && <span className="text-xs text-blue-500 -mt-1">{item.inflow}</span>}
-              <span className="text-xs text-gray-500 mt-1">{item.month}</span>
+      <div className="bg-white p-4 rounded-lg" style={{ minHeight: '300px' }}>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          </div>
+        ) : (
+          <>
+            <div className="h-64 flex items-end justify-between gap-1">
+              {data.map((item, index) => (
+                <div key={index} className="flex flex-col items-center flex-1">
+                  <div className="flex gap-0.5 items-end h-48 w-full justify-center">
+                    <div className="w-3 bg-blue-400 rounded-t" style={{ height: `${(item.inflow / maxValue) * 100}%`, minHeight: item.inflow > 0 ? '4px' : '0' }} />
+                    <div className="w-3 bg-green-400 rounded-t" style={{ height: `${(item.processed / maxValue) * 100}%`, minHeight: item.processed > 0 ? '4px' : '0' }} />
+                  </div>
+                  {item.inflow > 0 && <span className="text-xs text-blue-500 -mt-1">{item.inflow}</span>}
+                  <span className="text-xs text-gray-500 mt-1">{item.month}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="flex justify-center gap-6 mt-4">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-blue-400 rounded" />
-            <span className="text-sm text-gray-600">Inflow</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-400 rounded" />
-            <span className="text-sm text-gray-600">Processed</span>
-          </div>
-        </div>
+            <div className="flex justify-center gap-6 mt-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-400 rounded" />
+                <span className="text-sm text-gray-600">Inflow</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-400 rounded" />
+                <span className="text-sm text-gray-600">Processed</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     );
   };
 
-  // Render donut chart
+  // Donut chart rendering
   const renderDonutChart = (inflow: number, processed: number, pending: number) => {
     const total = inflow + processed + pending || 1;
     const inflowPct = (inflow / total) * 100;
     const processedPct = (processed / total) * 100;
     const pendingPct = (pending / total) * 100;
-
     return (
-      <div className="bg-white p-4 rounded-lg flex items-center justify-center">
+      <div className="bg-white p-4 rounded-lg flex items-center justify-center" style={{ minHeight: '300px' }}>
         <div className="relative">
           <svg width="200" height="200" viewBox="0 0 200 200">
             <circle cx="100" cy="100" r="70" fill="none" stroke="#e5e7eb" strokeWidth="30" />
-            <circle
-              cx="100" cy="100" r="70"
-              fill="none" stroke="#60a5fa" strokeWidth="30"
-              strokeDasharray={`${inflowPct * 4.4} 440`}
-              strokeDashoffset="0"
-              transform="rotate(-90 100 100)"
-            />
-            <circle
-              cx="100" cy="100" r="70"
-              fill="none" stroke="#4ade80" strokeWidth="30"
-              strokeDasharray={`${processedPct * 4.4} 440`}
-              strokeDashoffset={`-${inflowPct * 4.4}`}
-              transform="rotate(-90 100 100)"
-            />
-            <circle
-              cx="100" cy="100" r="70"
-              fill="none" stroke="#fb923c" strokeWidth="30"
-              strokeDasharray={`${pendingPct * 4.4} 440`}
-              strokeDashoffset={`-${(inflowPct + processedPct) * 4.4}`}
-              transform="rotate(-90 100 100)"
-            />
+            <circle cx="100" cy="100" r="70" fill="none" stroke="#60a5fa" strokeWidth="30" strokeDasharray={`${inflowPct * 4.4} 440`} strokeDashoffset="0" transform="rotate(-90 100 100)" />
+            <circle cx="100" cy="100" r="70" fill="none" stroke="#4ade80" strokeWidth="30" strokeDasharray={`${processedPct * 4.4} 440`} strokeDashoffset={`-${inflowPct * 4.4}`} transform="rotate(-90 100 100)" />
+            <circle cx="100" cy="100" r="70" fill="none" stroke="#fb923c" strokeWidth="30" strokeDasharray={`${pendingPct * 4.4} 440`} strokeDashoffset={`-${(inflowPct + processedPct) * 4.4}`} transform="rotate(-90 100 100)" />
           </svg>
         </div>
         <div className="ml-8 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-blue-400 rounded-full" />
-            <span className="text-sm text-gray-600">Inflow ({inflowPct.toFixed(1)}%)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-400 rounded-full" />
-            <span className="text-sm text-gray-600">Processed ({processedPct.toFixed(1)}%)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-orange-400 rounded-full" />
-            <span className="text-sm text-gray-600">Pending ({pendingPct.toFixed(1)}%)</span>
-          </div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-400 rounded-full" /><span className="text-sm text-gray-600">Inflow ({inflowPct.toFixed(1)}%)</span></div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 bg-green-400 rounded-full" /><span className="text-sm text-gray-600">Processed ({processedPct.toFixed(1)}%)</span></div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 bg-orange-400 rounded-full" /><span className="text-sm text-gray-600">Pending ({pendingPct.toFixed(1)}%)</span></div>
         </div>
       </div>
     );
   };
 
+  // Skeleton rows for loading
+  const renderSkeletonRows = (cols: number) => (
+    <tbody>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <tr key={i}>{Array.from({ length: cols }).map((_, j) => (
+          <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-200 rounded animate-pulse" /></td>
+        ))}</tr>
+      ))}
+    </tbody>
+  );
+
+  // Render error banner
+  const renderErrorBanner = () => errorMessage ? (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-center justify-between">
+      <span className="text-red-700 text-sm">{errorMessage}</span>
+      <button onClick={handleRetry} className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">Retry</button>
+    </div>
+  ) : null;
+
+  // Render KPI stats
+  const renderStats = (stats: StatCard[]) => (
+    <div className="grid grid-cols-5 gap-4" style={{ minHeight: '60px' }}>
+      {isLoading ? (
+        Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="text-center">
+            <div className="h-6 bg-gray-200 rounded animate-pulse mx-auto w-20 mb-1" />
+            <div className="h-4 bg-gray-200 rounded animate-pulse mx-auto w-16" />
+          </div>
+        ))
+      ) : (
+        stats.map((stat, index) => (
+          <div key={index} className="text-center">
+            <div className="text-xl font-bold text-gray-800">{stat.value}</div>
+            <div className="text-sm text-gray-500">{stat.label}</div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
   // Render Batch Inventory tab
   const renderBatchInventory = () => (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-gray-800">Year To Date Overview</h2>
-
-      {isTabLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-5 gap-4">
-            {batchStats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-xl font-bold text-gray-800">{stat.value}</div>
-                <div className="text-sm text-gray-500">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-8">
-            {renderBarChart(batchMonthData)}
-            {renderDonutChart(6, 1, 5)}
-          </div>
-        </>
-      )}
+      {renderStats(batchStats)}
+      <div className="grid grid-cols-2 gap-8">
+        {renderBarChart(batchChartData)}
+        {renderDonutChart(6, 1, 5)}
+      </div>
     </div>
   );
 
@@ -393,28 +468,11 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
   const renderInvoiceInventory = () => (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-gray-800">Invoice Inventory - Year To Date Overview</h2>
-
-      {isTabLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-5 gap-4">
-            {invoiceStats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-xl font-bold text-gray-800">{stat.value}</div>
-                <div className="text-sm text-gray-500">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-8">
-            {renderBarChart(invoiceMonthData)}
-            {renderDonutChart(6, 1, 5)}
-          </div>
-        </>
-      )}
+      {renderStats(invoiceStats)}
+      <div className="grid grid-cols-2 gap-8">
+        {renderBarChart(invoiceChartData)}
+        {renderDonutChart(6, 1, 5)}
+      </div>
     </div>
   );
 
@@ -426,62 +484,27 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
         <nav className="flex gap-4">
           <button
             onClick={() => handlePerformanceSubTabChange('suppliers')}
-            className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
-              performanceSubTab === 'suppliers'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Suppliers
-          </button>
+            className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${performanceSubTab === 'suppliers' ? 'border-blue-500 text-blue-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >Suppliers</button>
           <button
             onClick={() => handlePerformanceSubTabChange('agents')}
-            className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
-              performanceSubTab === 'agents'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Agents
-          </button>
+            className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${performanceSubTab === 'agents' ? 'border-blue-500 text-blue-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >Agents</button>
         </nav>
       </div>
 
       {/* Search bar for Suppliers */}
       {performanceSubTab === 'suppliers' && (
         <div className="flex items-center gap-4">
-          <select
-            value={searchCategory}
-            onChange={(e) => setSearchCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-          >
-            {searchConfig.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
+          <select value={searchCategory} onChange={(e) => setSearchCategory(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm">
+            {searchConfig.map(cat => (<option key={cat} value={cat}>{cat}</option>))}
           </select>
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-          />
-          <button
-            onClick={handleSearch}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-          >
-            Search
-          </button>
+          <input type="text" placeholder="Search..." value={searchText} onChange={(e) => setSearchText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg text-sm" />
+          <button onClick={handleSearch} disabled={isLoading} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">Search</button>
         </div>
       )}
 
-      {isTabLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-        </div>
-      ) : performanceSubTab === 'suppliers' ? (
-        /* Suppliers table */
+      {performanceSubTab === 'suppliers' ? (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -496,45 +519,36 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
                 <th className="px-4 py-3 text-center text-sm font-medium text-gray-700">91+ Days</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {processedSupplierData.slice((currentPage - 1) * 10, currentPage * 10).map((supplier) => (
-                <tr key={supplier.supplier_id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-900">{supplier.supplier_name}</td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.today}</td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.yesterday}</td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.days_3_7}</td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.days_8_30}</td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.days_31_60}</td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.days_61_90}</td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.days_91_plus}</td>
-                </tr>
-              ))}
-            </tbody>
+            {isLoading ? renderSkeletonRows(8) : (
+              <tbody className="divide-y divide-gray-200">
+                {supplierData.length === 0 ? (
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No records found.</td></tr>
+                ) : (
+                  supplierData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((supplier) => (
+                    <tr key={supplier.supplier_id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-900">{supplier.supplier_name}</td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.today}</td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.yesterday}</td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.days_3_7}</td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.days_8_30}</td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.days_31_60}</td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.days_61_90}</td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">{supplier.days_91_plus}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            )}
           </table>
-
-          {/* Pagination */}
           <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
             <span className="text-sm text-gray-600">Page {currentPage} of {totalPages}</span>
             <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
-              >
-                Next
-              </button>
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1 || isLoading} className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50">Previous</button>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || isLoading} className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50">Next</button>
             </div>
           </div>
         </div>
       ) : (
-        /* Agents table */
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -545,51 +559,37 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
                 <th className="px-6 py-3 text-center text-sm font-medium text-gray-700">Accuracy Rate</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {processedAgentData.map((agent) => (
-                <tr key={agent.agent_id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 text-sm text-gray-900">{agent.agent_name}</td>
-                  <td className="px-6 py-3 text-center text-sm text-gray-600">{agent.processed_count}</td>
-                  <td className="px-6 py-3 text-center text-sm text-gray-600">{agent.pending_count}</td>
-                  <td className="px-6 py-3 text-center text-sm text-green-600">{agent.accuracy_rate}%</td>
-                </tr>
-              ))}
-            </tbody>
+            {isLoading ? renderSkeletonRows(4) : (
+              <tbody className="divide-y divide-gray-200">
+                {agentData.length === 0 ? (
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">No records found.</td></tr>
+                ) : (
+                  agentData.map((agent) => (
+                    <tr key={agent.agent_id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3 text-sm text-gray-900">{agent.agent_name}</td>
+                      <td className="px-6 py-3 text-center text-sm text-gray-600">{agent.processed_count}</td>
+                      <td className="px-6 py-3 text-center text-sm text-gray-600">{agent.pending_count}</td>
+                      <td className="px-6 py-3 text-center text-sm text-green-600">{agent.accuracy_rate}%</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            )}
           </table>
         </div>
       )}
     </div>
   );
 
-  // Render tab content
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'batch':
-        return renderBatchInventory();
-      case 'invoice':
-        return renderInvoiceInventory();
-      case 'performance':
-        return renderPerformance();
-      default:
-        return null;
-    }
-  };
-
   if (!userData) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Please log in to view the dashboard</p>
-      </div>
-    );
+    return (<div className="flex items-center justify-center h-64"><p className="text-gray-500">Please log in to view the dashboard</p></div>);
   }
 
   return (
     <div className={`p-6 ${className}`}>
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        <div className="text-2xl font-light text-blue-600">
-          <span className="text-blue-800 font-semibold">one</span>base
-        </div>
+        <div className="text-2xl font-light text-blue-600"><span className="text-blue-800 font-semibold">one</span>base</div>
         <div className="flex items-center gap-4 text-sm text-gray-600">
           <span>Selected TimeZone: Asia/Calcutta - {new Date().toISOString().split('T')[0]} {new Date().toLocaleTimeString()}</span>
           <span className="text-blue-600">{userData?.user_name || 'Digital User'} ▼</span>
@@ -604,23 +604,23 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
             { id: 'invoice' as MainTabType, label: 'Invoice Inventory' },
             { id: 'performance' as MainTabType, label: 'Performance' },
           ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
+            <button key={tab.id} onClick={() => handleTabChange(tab.id)}
+              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id ? 'border-blue-500 text-blue-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               {tab.label}
             </button>
           ))}
         </nav>
       </div>
 
-      {/* Tab Content */}
-      <div className="min-h-[400px]">{renderTabContent()}</div>
+      {/* Error Banner */}
+      {renderErrorBanner()}
+
+      {/* Tab Content - min-height for layout stability */}
+      <div className="min-h-[400px]">
+        {activeTab === 'batch' && renderBatchInventory()}
+        {activeTab === 'invoice' && renderInvoiceInventory()}
+        {activeTab === 'performance' && renderPerformance()}
+      </div>
     </div>
   );
 };

@@ -8,7 +8,7 @@
  * Left: Optus Intelligence branding
  * Right: Access onebase login form
  */
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthenticationState } from '../hooks/useAuthenticationState';
 

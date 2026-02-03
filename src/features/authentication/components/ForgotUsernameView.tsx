@@ -3,7 +3,7 @@
  * Flow: Enter email -> Send OTP -> Verify OTP -> Show username sent message
  * Migrated from AppHomeController.js forgotUserName function (line 1187)
  */
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   useForgotUsernameMutation,

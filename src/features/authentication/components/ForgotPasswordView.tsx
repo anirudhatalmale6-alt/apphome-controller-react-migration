@@ -9,7 +9,7 @@
  * Step 3: Create new password (split layout with requirements)
  * Step 4: Success with "Back to Sign In" link
  */
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePasswordValidation, useConfirmPassword } from '../hooks/usePasswordValidation';
 import { encryptData, encryptPassword, decryptData, maskEmail } from '../../../lib/crypto';

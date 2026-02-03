@@ -5,6 +5,9 @@
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import { updateUserContext } from '../../authentication/store/authSlice';
+import { selectBusinessStarter } from '../store/businessStarterSlice';
 import { useBusinessStarterState } from '../hooks/useBusinessStarterState';
 import type { BusinessProcess } from '../types/BusinessStarterTypes';
 
@@ -20,6 +23,8 @@ export const BusinessProcessGrid: React.FC<BusinessProcessGridProps> = ({
   onToggleView,
 }) => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { selectedCustomerId } = useAppSelector(selectBusinessStarter);
   const { handleFilterBusinessProcess, handleGroupBusinessUnit } = useBusinessStarterState();
   const [searchInput, setSearchInput] = useState('');
 
@@ -30,6 +35,14 @@ export const BusinessProcessGrid: React.FC<BusinessProcessGridProps> = ({
 
   const handleSelectBps = (bps: BusinessProcess) => {
     if (bps.bu_list) {
+      // Update auth user context with the selected BPS/customer so downstream
+      // controllers (Home, Tasks, Apps) pick up the correct IDs for API calls
+      dispatch(updateUserContext({
+        customer_id: selectedCustomerId || undefined,
+        bps_id: bps.bps_id,
+        sp_process_id: bps.bps_id,
+      }));
+
       handleGroupBusinessUnit(bps.bu_list as unknown as import('../types/BusinessStarterTypes').Queue[]);
       navigate('/BusinessHomeViews');
     }

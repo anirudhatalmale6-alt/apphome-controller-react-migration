@@ -11,6 +11,7 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthenticationState } from '../hooks/useAuthenticationState';
+import { resolveHomepage } from '../../../app/router';
 
 /**
  * Main login view component
@@ -86,7 +87,7 @@ export const LoginView: React.FC = () => {
 
     const homepage = await signIn(username, password);
     if (homepage) {
-      navigate(`/${homepage}`);
+      navigate(resolveHomepage(homepage as string));
     }
   }, [signIn, username, password, agreeToTerms, navigate]);
 

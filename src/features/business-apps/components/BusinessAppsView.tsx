@@ -18,7 +18,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAppSelector } from '../../../app/hooks';
 import {
-  useLoadBuQueueActionsQuery,
+  useLazyLoadBuQueueActionsQuery,
   useLazyLoadRecentWorkflowsQuery,
   useLazyLoadPastDueWorkflowsQuery,
   useLazyLoadCustomWorkflowsQuery,
@@ -75,24 +75,39 @@ export function BusinessAppsView() {
     pageSize: 100,
   }), [userData]);
 
-  // Load BU Queue Actions on page load
-  const { data: buQueueActionsData, isLoading: isLoadingBuQueue } = useLoadBuQueueActionsQuery(
-    baseParams,
-    { skip: !userData }
-  );
-
-  // Lazy query hooks for event-driven API calls
+  // ALL lazy query hooks - event-driven, no skip-based caching
+  const [triggerBuQueueActions, { isLoading: isLoadingBuQueue }] = useLazyLoadBuQueueActionsQuery();
   const [triggerRecent] = useLazyLoadRecentWorkflowsQuery();
   const [triggerPastDue] = useLazyLoadPastDueWorkflowsQuery();
   const [triggerCustom] = useLazyLoadCustomWorkflowsQuery();
   const [searchRecentMutation] = useSearchRecentWorkflowsMutation();
   const [searchPastDueMutation] = useSearchPastDueWorkflowsMutation();
 
-  // Process queue items from API response
-  const queueItems = useMemo<QueueItem[]>(() => {
-    if (!buQueueActionsData || !Array.isArray(buQueueActionsData)) return [];
-    return buQueueActionsData;
-  }, [buQueueActionsData]);
+  // Queue items state (populated by lazy trigger)
+  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+
+  // Load BU Queue Actions - event-driven, triggered on mount and userData change
+  const loadBuQueueActions = useCallback(async () => {
+    if (!userData?.customer_id || !userData?.bps_id) return;
+    try {
+      const result = await triggerBuQueueActions(baseParams, true).unwrap();
+      if (result && Array.isArray(result)) {
+        setQueueItems(result);
+      } else {
+        setQueueItems([]);
+      }
+    } catch (error) {
+      console.error('BU Queue Actions API error:', error);
+      setQueueItems([]);
+    }
+  }, [userData, baseParams, triggerBuQueueActions]);
+
+  // Trigger BU Queue Actions on mount and when userData changes
+  useEffect(() => {
+    if (userData?.customer_id && userData?.bps_id) {
+      loadBuQueueActions();
+    }
+  }, [userData?.customer_id, userData?.bps_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ========= EVENT-DRIVEN API TRIGGERS =========
 

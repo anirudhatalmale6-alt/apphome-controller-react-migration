@@ -32,7 +32,7 @@ import {
   useLazyLoadAdminSettingsQuery,
   useLazyLoadAdminTechopsQuery,
 } from '../api/businessStarterApi';
-import { selectAuth } from '../../authentication/store/authSlice';
+import { selectAuth, updateUserContext } from '../../authentication/store/authSlice';
 import { CompanySelector } from './CompanySelector';
 import { InsightsTabs } from './InsightsTabs';
 import { BusinessProcessGrid } from './BusinessProcessGrid';
@@ -188,6 +188,9 @@ export const BusinessStarterView: React.FC = () => {
     // Update active company state
     dispatch(selectPartnerAction(index));
     dispatch(setSelectedCustomer({ id: customer.customer_id, name: customer.customer_name }));
+
+    // Propagate customer_id to auth user context so downstream controllers use it
+    dispatch(updateUserContext({ customer_id: customer.customer_id }));
 
     // Reset tab to default (Insights)
     dispatch(setSelectedInsightsTab(0));

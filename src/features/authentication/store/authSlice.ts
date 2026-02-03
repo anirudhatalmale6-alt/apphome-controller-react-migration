@@ -128,6 +128,29 @@ const authSlice = createSlice({
       state.error = null;
       state.showRemoteKeyModal = false;
     },
+
+    // Update user context when BPS/customer changes (e.g. from BusinessStarter selection)
+    // This is critical for downstream controllers (Home, Tasks, Apps) to use the selected BPS
+    updateUserContext: (state, action: PayloadAction<{
+      customer_id?: string;
+      bps_id?: string;
+      bu_id?: string;
+      tps_id?: string;
+      dept_id?: string;
+      queue_id?: string;
+      sp_process_id?: string;
+    }>) => {
+      if (state.user) {
+        const updates = action.payload;
+        if (updates.customer_id !== undefined) state.user.customer_id = updates.customer_id;
+        if (updates.bps_id !== undefined) state.user.bps_id = updates.bps_id;
+        if (updates.bu_id !== undefined) state.user.bu_id = updates.bu_id;
+        if (updates.tps_id !== undefined) state.user.tps_id = updates.tps_id;
+        if (updates.dept_id !== undefined) state.user.dept_id = updates.dept_id;
+        if (updates.queue_id !== undefined) state.user.queue_id = updates.queue_id;
+        if (updates.sp_process_id !== undefined) state.user.sp_process_id = updates.sp_process_id;
+      }
+    },
   },
 });
 
@@ -145,6 +168,7 @@ export const {
   updateRemoteKeyTimer,
   hideRemoteKeyModal,
   resetAuthState,
+  updateUserContext,
 } = authSlice.actions;
 
 export default authSlice.reducer;

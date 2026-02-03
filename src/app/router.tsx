@@ -2,6 +2,11 @@
  * Routing Configuration (React Router v6)
  * Route composition with guards
  * Migrated from AngularJS $routeProvider
+ *
+ * Fixed 03-Feb:
+ * - Added /forgot-username route (was missing, causing 404)
+ * - Added resolveHomepage() to map AngularJS role_homepage values to React routes
+ * - Case-insensitive route matching for role_homepage
  */
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppSelector } from './hooks';
@@ -10,6 +15,7 @@ import { selectIsAuthenticated } from '../features/authentication/store/authSlic
 // Pages
 import { LoginPage } from '../pages/LoginPage';
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage';
+import { ForgotUsernamePage } from '../pages/ForgotUsernamePage';
 import { PasswordSetupPage } from '../pages/PasswordSetupPage';
 import { HomePage } from '../pages/HomePage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -20,6 +26,59 @@ import { BusinessAppsView } from '../features/business-apps';
 import { BusinessHomeView } from '../features/business-home';
 import { BusinessTasksView } from '../features/business-tasks';
 import { NavigationShellView } from '../features/navigation';
+
+/**
+ * Map any role_homepage value from the sign-in API to a valid React route.
+ * The AngularJS app navigated to `/{role_homepage}` directly.
+ * This ensures all known values (including legacy naming) resolve correctly.
+ */
+export function resolveHomepage(roleHomepage: string): string {
+  if (!roleHomepage) return '/BusinessStarter';
+
+  // Normalise for lookup (trim, lowercase)
+  const key = roleHomepage.trim().toLowerCase();
+
+  const ROUTE_MAP: Record<string, string> = {
+    // Direct React route names (most common)
+    businessstarter: '/BusinessStarter',
+    businesshomeviews: '/BusinessHomeViews',
+    businesstasks: '/BusinessTasks',
+    businessapps: '/BusinessApps',
+    admin: '/Admin',
+    setting: '/Setting',
+    sladashboard: '/SLADashBoard',
+    serviceanalytics: '/ServiceAnalytics',
+    help: '/help',
+    termsofservice: '/TermsofService',
+
+    // Legacy AngularJS controller/page names that may still come from the API
+    businessstarterctrl: '/BusinessStarter',
+    businessstarterpage: '/BusinessStarter',
+    businessstartercontroller: '/BusinessStarter',
+    businesshomeviewscontroller: '/BusinessHomeViews',
+    businesstaskscontroller: '/BusinessTasks',
+    businessappscontroller: '/BusinessApps',
+
+    // Short aliases from $rootScope.pathMapping
+    home: '/BusinessHomeViews',
+    tasks: '/BusinessTasks',
+    apps: '/BusinessApps',
+    recent: '/BusinessTasks',
+    activetasks: '/BusinessTasks',
+  };
+
+  // Exact match (case-insensitive)
+  if (ROUTE_MAP[key]) return ROUTE_MAP[key];
+
+  // If the value already starts with '/', treat it as a path and check it exists
+  if (roleHomepage.startsWith('/')) {
+    const knownPaths = Object.values(ROUTE_MAP);
+    if (knownPaths.includes(roleHomepage)) return roleHomepage;
+  }
+
+  // Last resort: prepend '/' and use as-is (original behaviour)
+  return `/${roleHomepage}`;
+}
 
 /**
  * Protected route wrapper
@@ -57,6 +116,7 @@ export const AppRouter: React.FC = () => {
       <Route path="/" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+      <Route path="/forgot-username" element={<PublicRoute><ForgotUsernamePage /></PublicRoute>} />
       <Route path="/password-setup" element={<PasswordSetupPage />} />
 
       {/* Protected Routes */}

@@ -1,8 +1,11 @@
 /**
  * Redux Toolkit Store Configuration
  * Central state management - replaces AngularJS $rootScope patterns
+ *
+ * Session hardening: 401/Unauthorized middleware auto-clears session and redirects
  */
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, isRejectedWithValue } from '@reduxjs/toolkit';
+import type { Middleware } from '@reduxjs/toolkit';
 import { authenticationApi } from '../features/authentication/api/authenticationApi';
 import { navigationApi } from '../features/navigation/api/navigationApi';
 import { userProfileApi } from '../features/user-profile/api/userProfileApi';
@@ -19,6 +22,24 @@ import businessStarterReducer from '../features/business-starter/store/businessS
 import businessAppsReducer from '../features/business-apps/store/businessAppsSlice';
 import businessHomeReducer from '../features/business-home/store/businessHomeSlice';
 import businessTasksReducer from '../features/business-tasks/store/businessTasksSlice';
+
+/**
+ * Middleware: intercept 401 Unauthorized API responses
+ * Clears session and redirects to login (State 6/9 from feedback docs)
+ */
+const unauthorizedMiddleware: Middleware = () => (next) => (action) => {
+  if (isRejectedWithValue(action)) {
+    const payload = action.payload as { status?: number };
+    if (payload?.status === 401) {
+      // Clear all client storage
+      try { localStorage.clear(); } catch { /* */ }
+      try { sessionStorage.clear(); } catch { /* */ }
+      // Redirect to login
+      window.location.href = '/';
+    }
+  }
+  return next(action);
+};
 
 /**
  * Configured Redux store with RTK Query APIs
@@ -53,6 +74,7 @@ export const store = configureStore({
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
       },
     }).concat(
+      unauthorizedMiddleware,
       authenticationApi.middleware,
       navigationApi.middleware,
       userProfileApi.middleware,

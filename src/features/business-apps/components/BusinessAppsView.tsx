@@ -90,7 +90,7 @@ export function BusinessAppsView() {
   const loadBuQueueActions = useCallback(async () => {
     if (!userData?.customer_id || !userData?.bps_id) return;
     try {
-      const result = await triggerBuQueueActions(baseParams, true).unwrap();
+      const result = await triggerBuQueueActions(baseParams, false).unwrap();
       if (result && Array.isArray(result)) {
         setQueueItems(result);
       } else {
@@ -129,7 +129,7 @@ export function BusinessAppsView() {
           pageNumber: 1,
           pageSize: itemsPerPage,
         }
-      }, true).unwrap();
+      }, false).unwrap();
 
       if (result && result[0]) {
         setWorkflowData(result[0]);
@@ -164,7 +164,7 @@ export function BusinessAppsView() {
           pageSize: itemsPerPage,
           aging: 'today',
         }
-      }, true).unwrap();
+      }, false).unwrap();
 
       if (result && result[0]) {
         setWorkflowData(result[0]);
@@ -197,7 +197,7 @@ export function BusinessAppsView() {
         endDateTime: endDate,
         pageNumber: 1,
         pageSize: itemsPerPage,
-      }, true).unwrap();
+      }, false).unwrap();
 
       if (result && result[0]) {
         setWorkflowData(result[0]);
@@ -252,14 +252,31 @@ export function BusinessAppsView() {
     }
   }, [queueItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Toggle queue expansion - does NOT trigger API
-  const toggleQueueExpansion = useCallback((queueName: string) => {
+  // Toggle queue expansion - expand/collapse does NOT trigger API per Rule 10
+  // But selecting a new queue auto-selects first action and DOES trigger API per Rule 3/4
+  const toggleQueueExpansion = useCallback((queueName: string, queue: QueueItem) => {
+    const isExpanding = !expandedQueues.includes(queueName);
     setExpandedQueues(prev =>
       prev.includes(queueName)
         ? prev.filter(q => q !== queueName)
         : [...prev, queueName]
     );
-  }, []);
+
+    // When expanding a DIFFERENT queue, auto-select its first action (cascade)
+    if (isExpanding && queueName !== selectedQueueName && queue.QueueProperties && queue.QueueProperties.length > 0) {
+      const firstAction = queue.QueueProperties[0];
+      setSelectedQueueName(queueName);
+      setSelectedAction(firstAction);
+      setCurrentPage(1);
+      setSearchText('');
+      setErrorMessage(null);
+
+      const qId = queue.queue_id || firstAction.bPaaS_workflow_id || '';
+      setSelectedQueueId(qId);
+      // Trigger API for first action of new queue
+      loadWorkflowsForTab(activeTimelineTab, qId);
+    }
+  }, [expandedQueues, selectedQueueName, activeTimelineTab, loadWorkflowsForTab]);
 
   // Handle action selection - TRIGGERS API
   const handleActionSelect = useCallback((action: QueueProperty, queueName: string, queue: QueueItem) => {
@@ -384,7 +401,7 @@ export function BusinessAppsView() {
           {queueItems.map((queue, queueIdx) => (
             <div key={queueIdx} className="mb-1">
               <button
-                onClick={() => toggleQueueExpansion(queue.QueueNames)}
+                onClick={() => toggleQueueExpansion(queue.QueueNames, queue)}
                 className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between ${
                   selectedQueueName === queue.QueueNames ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
                 }`}

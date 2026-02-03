@@ -101,7 +101,7 @@ export const BusinessStarterView: React.FC = () => {
     dispatch(setTabLoading(true));
 
     try {
-      const result = await triggerDashboard(userCredentials, true).unwrap();
+      const result = await triggerDashboard(userCredentials, false).unwrap();
       if (result) {
         dispatch(setCustomerDashboardData(result));
       }
@@ -121,7 +121,7 @@ export const BusinessStarterView: React.FC = () => {
     dispatch(setTabLoading(true));
 
     try {
-      const result = await triggerAdminSettings(userCredentials, true).unwrap();
+      const result = await triggerAdminSettings(userCredentials, false).unwrap();
       if (result) {
         // Store in dashboard data (reused by CustomerDashboard with isAdminSettings)
         dispatch(setCustomerDashboardData(result as any));
@@ -142,7 +142,7 @@ export const BusinessStarterView: React.FC = () => {
     dispatch(setTabLoading(true));
 
     try {
-      const result = await triggerAdminTechops(userCredentials, true).unwrap();
+      const result = await triggerAdminTechops(userCredentials, false).unwrap();
       if (result) {
         dispatch(setCustomerDashboardData(result as any));
       }

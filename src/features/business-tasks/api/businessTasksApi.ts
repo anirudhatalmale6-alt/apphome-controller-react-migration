@@ -60,6 +60,7 @@ interface BaseQueryParams {
 interface PaginatedQueryParams extends BaseQueryParams {
   itemsPerPage: number;
   currentPage: number;
+  eventTerm?: string;
 }
 
 interface SearchQueryParams extends PaginatedQueryParams {

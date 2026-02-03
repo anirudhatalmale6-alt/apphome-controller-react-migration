@@ -128,8 +128,8 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
     setErrorMessage(null);
     try {
       const [overviewResult, agingResult] = await Promise.all([
-        triggerBatchOverview(userParams, true).unwrap(),
-        triggerBatchAging(userParams, true).unwrap()
+        triggerBatchOverview(userParams, false).unwrap(),
+        triggerBatchAging(userParams, false).unwrap()
       ]);
 
       // Process overview
@@ -172,8 +172,8 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
     setErrorMessage(null);
     try {
       const [overviewResult, agingResult] = await Promise.all([
-        triggerInvoiceOverview(userParams, true).unwrap(),
-        triggerBatchAging({ ...userParams }, true).unwrap()
+        triggerInvoiceOverview(userParams, false).unwrap(),
+        triggerBatchAging({ ...userParams }, false).unwrap()
       ]);
 
       if (overviewResult && overviewResult[0]?.[0]) {
@@ -215,7 +215,7 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
     try {
       const result = await triggerSupplierData(
         { ...userParams, itemsPerPage: 20, currentPage },
-        true
+        false
       ).unwrap();
       if (result && result[0]) {
         setSupplierData((result[0] as SupplierRow[]).map((item, idx) => ({
@@ -248,7 +248,7 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
     try {
       const result = await triggerAgentData(
         { ...userParams, itemsPerPage: 20, currentPage },
-        true
+        false
       ).unwrap();
       if (result && result[0]) {
         setAgentData(result[0].map(agent => ({
@@ -314,18 +314,35 @@ export const BusinessHomeView: React.FC<BusinessHomeViewProps> = ({ className = 
     }
   }, [loadSupplierData, loadAgentData]);
 
-  // Search
+  // Search - scoped to active Performance sub-tab (Suppliers)
   const handleSearch = useCallback(async () => {
     if (!searchText.trim()) return;
     setIsLoading(true);
     setErrorMessage(null);
+    setCurrentPage(1);
     try {
-      await searchSuppliers({
+      const result = await searchSuppliers({
         ...userParams,
         searchText,
         itemsPerPage: 20,
         currentPage: 1
       }).unwrap();
+      // Store search results in supplier data state
+      if (result && result[0]) {
+        setSupplierData((result[0] as SupplierRow[]).map((item, idx) => ({
+          supplier_id: item.supplier_id || String(idx),
+          supplier_name: item.supplier_name || 'Unknown',
+          today: item.today || 0,
+          yesterday: item.yesterday || 0,
+          days_3_7: item.days_3_7 || 0,
+          days_8_30: item.days_8_30 || 0,
+          days_31_60: item.days_31_60 || 0,
+          days_61_90: item.days_61_90 || 0,
+          days_91_plus: item.days_91_plus || 0,
+        })));
+      } else {
+        setSupplierData([]);
+      }
     } catch (error) {
       console.error('Search failed:', error);
       setErrorMessage('Search failed. Please retry.');

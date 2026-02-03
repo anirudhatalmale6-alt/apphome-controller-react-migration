@@ -200,7 +200,7 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     try {
       const result = await triggerAging(
         { ...userParams, itemsPerPage: 100, currentPage: 1 },
-        true // preferCacheValue = false would be ideal but we force re-fetch
+        false // preferCacheValue = false to force fresh API call on every trigger
       ).unwrap();
       if (result && result[0]) {
         setAgingDataState(result[0].map((item, index) => ({
@@ -232,8 +232,8 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     setErrorMessage(null);
     try {
       const [supplierResult, reasonsResult] = await Promise.all([
-        triggerExceptionSupplier(userParams, true).unwrap(),
-        triggerYTDExceptions({ ...userParams, itemsPerPage: 100, currentPage: 1 }, true).unwrap()
+        triggerExceptionSupplier(userParams, false).unwrap(),
+        triggerYTDExceptions({ ...userParams, itemsPerPage: 100, currentPage: 1 }, false).unwrap()
       ]);
 
       if (supplierResult && supplierResult[0]) {
@@ -280,7 +280,7 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     try {
       const result = await triggerRecent(
         { ...userParams, itemsPerPage: 100, currentPage: 1 },
-        true
+        false
       ).unwrap();
       if (result && result[0]) {
         setRecentWorkflowsState(result[0].map(item => ({
@@ -308,16 +308,18 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     setIsLoading(true);
     setErrorMessage(null);
     // Use the passed bucket or fall back to active
-    const _bucket = bucket || activePastDueBucket;
-    void _bucket; // acknowledged for future use
+    const currentBucket = bucket || activePastDueBucket;
+    // Map bucket to API eventTerm parameter
+    const bucketConfig = PAST_DUE_TIME_BUCKETS.find(b => b.id === currentBucket);
+    const eventTerm = bucketConfig?.param || 'today';
 
     try {
-      // Load both counts and workflows
+      // Load both counts and workflows (pass eventTerm for bucket filtering)
       const [countResult, workflowResult] = await Promise.all([
-        triggerPastDueCount(userParams, true).unwrap(),
+        triggerPastDueCount(userParams, false).unwrap(),
         triggerPastDue(
-          { ...userParams, itemsPerPage: 100, currentPage: 1 },
-          true
+          { ...userParams, eventTerm, itemsPerPage: 100, currentPage: 1 },
+          false
         ).unwrap()
       ]);
 
@@ -363,7 +365,7 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     try {
       const result = await triggerCustom(
         { ...userParams, startDate, endDate, itemsPerPage: 100, currentPage: 1 },
-        true
+        false
       ).unwrap();
       if (result && result[0]) {
         setCustomWorkflowsState(result[0].map(item => ({

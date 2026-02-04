@@ -74,6 +74,7 @@ export const businessHomeApi = createApi({
   tagTypes: ['Dashboard', 'YTD', 'Exceptions', 'Inventory', 'Agents', 'Insights'],
   endpoints: (builder) => ({
     // Get tasks and workflows count
+    // AngularJS: decrypt -> res[0][0].merged_json -> JSON.parse -> recent_TasksWorkflows_Counts_data -> JSON.parse
     getTasksWorkflowsCount: builder.query<TasksWorkflowCount[][], BaseQueryParams>({
       query: (params) => ({
         url: BUSINESS_HOME_ENDPOINTS.TASKS_WORKFLOWS_COUNT,
@@ -81,19 +82,34 @@ export const businessHomeApi = createApi({
         body: encryptData(params),
         headers: { 'Content-Type': 'text/plain' },
       }),
-      transformResponse: (response: string) => decryptData(response),
+      transformResponse: (response: string) => {
+        try {
+          const decrypted = decryptData<any>(response);
+          // AngularJS deep extraction: res[0][0].merged_json
+          if (decrypted?.[0]?.[0]?.merged_json) {
+            const mergedJson = JSON.parse(decrypted[0][0].merged_json);
+            if (mergedJson.recent_TasksWorkflows_Counts_data) {
+              const countsData = JSON.parse(mergedJson.recent_TasksWorkflows_Counts_data);
+              return [[countsData[0]?.counts ?? countsData]];
+            }
+          }
+          return decrypted;
+        } catch {
+          return decryptData(response);
+        }
+      },
       providesTags: ['Dashboard'],
     }),
 
     // Load display time settings
-    getDisplayTimeSettings: builder.query<DisplayTimeSettings[][], BaseQueryParams>({
+    // AngularJS: NO encryption - plain JSON request & response
+    // Field: display_timezone (not display_time)
+    getDisplayTimeSettings: builder.query<DisplayTimeSettings[][], { customer_id: string; bps_id: string }>({
       query: (params) => ({
         url: BUSINESS_HOME_ENDPOINTS.LOAD_DISPLAY_TIME,
         method: 'POST',
-        body: encryptData(params),
-        headers: { 'Content-Type': 'text/plain' },
+        body: params,
       }),
-      transformResponse: (response: string) => decryptData(response),
     }),
 
     // Load YTD pending 30/60/90 days aging
@@ -145,6 +161,7 @@ export const businessHomeApi = createApi({
     }),
 
     // Fetch exception supplier count
+    // AngularJS: Request ENCRYPTED, Response NOT decrypted (direct res.data)
     getExceptionSupplierCount: builder.query<SupplierExceptionCount[][], BaseQueryParams & { sp_process_id: string }>({
       query: (params) => ({
         url: BUSINESS_HOME_ENDPOINTS.FETCH_EXCEPTION_SUPPLIER_COUNT,
@@ -152,11 +169,11 @@ export const businessHomeApi = createApi({
         body: encryptData(params),
         headers: { 'Content-Type': 'text/plain' },
       }),
-      transformResponse: (response: string) => decryptData(response),
       providesTags: ['Exceptions'],
     }),
 
     // Fetch exception by supplier
+    // AngularJS: Request ENCRYPTED, Response NOT decrypted (decryption code commented out)
     getExceptionBySupplier: builder.query<BusinessException[][], BaseQueryParams & { sp_process_id: string; supplier_id: string }>({
       query: (params) => ({
         url: BUSINESS_HOME_ENDPOINTS.FETCH_EXCEPTION_BY_SUPPLIER,
@@ -164,7 +181,6 @@ export const businessHomeApi = createApi({
         body: encryptData(params),
         headers: { 'Content-Type': 'text/plain' },
       }),
-      transformResponse: (response: string) => decryptData(response),
       providesTags: ['Exceptions'],
     }),
 
@@ -180,38 +196,35 @@ export const businessHomeApi = createApi({
     }),
 
     // Batch inventory YTD overview
+    // AngularJS: NO encryption - plain JSON both ways
     getBatchInventoryOverview: builder.query<BatchInventoryOverview[][], BaseQueryParams & { sp_process_id: string }>({
       query: (params) => ({
         url: BUSINESS_HOME_ENDPOINTS.BATCH_INVENTORY_YTD_OVERVIEW,
         method: 'POST',
-        body: encryptData(params),
-        headers: { 'Content-Type': 'text/plain' },
+        body: params,
       }),
-      transformResponse: (response: string) => decryptData(response),
       providesTags: ['Inventory'],
     }),
 
     // Batch inventory 30/60/90 aging
+    // AngularJS: NO encryption - plain JSON both ways
     getBatchInventory30_60_90: builder.query<BatchInventory30_60_90[][], BaseQueryParams & { sp_process_id: string }>({
       query: (params) => ({
         url: BUSINESS_HOME_ENDPOINTS.INVENTORY_YTD_30_60_90,
         method: 'POST',
-        body: encryptData(params),
-        headers: { 'Content-Type': 'text/plain' },
+        body: params,
       }),
-      transformResponse: (response: string) => decryptData(response),
       providesTags: ['Inventory'],
     }),
 
     // Invoice inventory YTD overview
+    // AngularJS: NO encryption - plain JSON both ways
     getInvoiceInventoryOverview: builder.query<InvoiceInventoryOverview[][], BaseQueryParams & { sp_process_id: string }>({
       query: (params) => ({
         url: BUSINESS_HOME_ENDPOINTS.INVOICE_INVENTORY_YTD_OVERVIEW,
         method: 'POST',
-        body: encryptData(params),
-        headers: { 'Content-Type': 'text/plain' },
+        body: params,
       }),
-      transformResponse: (response: string) => decryptData(response),
       providesTags: ['Inventory'],
     }),
 
@@ -261,14 +274,13 @@ export const businessHomeApi = createApi({
     }),
 
     // Load agent data (paginated)
+    // AngularJS: NO encryption - plain JSON both ways
     getAgentData: builder.query<AgentData[][], PaginatedQueryParams & { sp_process_id: string }>({
       query: (params) => ({
         url: BUSINESS_HOME_ENDPOINTS.LOAD_AGENT,
         method: 'POST',
-        body: encryptData(params),
-        headers: { 'Content-Type': 'text/plain' },
+        body: params,
       }),
-      transformResponse: (response: string) => decryptData(response),
       providesTags: ['Agents'],
     }),
   }),

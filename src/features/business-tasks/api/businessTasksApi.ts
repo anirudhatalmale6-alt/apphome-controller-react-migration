@@ -85,6 +85,7 @@ export const businessTasksApi = createApi({
   tagTypes: ['Tasks', 'Recent', 'PastDue', 'Insights', 'Exceptions', 'Processed'],
   endpoints: (builder) => ({
     // Get task and workflow counts
+    // AngularJS: decrypt -> res[0][0].merged_json -> JSON.parse -> recent_TasksWorkflows_Counts_data -> JSON.parse -> [0].counts
     getTasksWorkflowsCount: builder.query<TaskCount[][], BaseQueryParams>({
       query: (params) => ({
         url: BUSINESS_TASKS_ENDPOINTS.TASKS_WORKFLOWS_COUNT,
@@ -92,19 +93,34 @@ export const businessTasksApi = createApi({
         body: encryptData(params),
         headers: { 'Content-Type': 'text/plain' },
       }),
-      transformResponse: (response: string) => decryptData(response),
+      transformResponse: (response: string) => {
+        try {
+          const decrypted = decryptData<any>(response);
+          // AngularJS deep extraction: res[0][0].merged_json
+          if (decrypted?.[0]?.[0]?.merged_json) {
+            const mergedJson = JSON.parse(decrypted[0][0].merged_json);
+            if (mergedJson.recent_TasksWorkflows_Counts_data) {
+              const countsData = JSON.parse(mergedJson.recent_TasksWorkflows_Counts_data);
+              return [[countsData[0]?.counts ?? countsData]];
+            }
+          }
+          return decrypted;
+        } catch {
+          return decryptData(response);
+        }
+      },
       providesTags: ['Tasks'],
     }),
 
     // Load display time settings
-    getDisplayTimeSettings: builder.query<DisplayTimeSettings[][], BaseQueryParams>({
+    // AngularJS: NO encryption - plain JSON request & response
+    // Field: display_timezone (not display_time)
+    getDisplayTimeSettings: builder.query<DisplayTimeSettings[][], { customer_id: string; bps_id: string }>({
       query: (params) => ({
         url: BUSINESS_TASKS_ENDPOINTS.LOAD_DISPLAY_TIME,
         method: 'POST',
-        body: encryptData(params),
-        headers: { 'Content-Type': 'text/plain' },
+        body: params,
       }),
-      transformResponse: (response: string) => decryptData(response),
     }),
 
     // Fetch YTD audit data (30/60/90 days)
@@ -179,6 +195,7 @@ export const businessTasksApi = createApi({
     }),
 
     // Get exception supplier counts
+    // AngularJS: Request ENCRYPTED, Response NOT decrypted (direct res.data)
     getExceptionSupplierCount: builder.query<SupplierExceptionCount[][], BaseQueryParams>({
       query: (params) => ({
         url: BUSINESS_TASKS_ENDPOINTS.FETCH_EXCEPTION_SUPPLIER_COUNT,
@@ -186,11 +203,11 @@ export const businessTasksApi = createApi({
         body: encryptData(params),
         headers: { 'Content-Type': 'text/plain' },
       }),
-      transformResponse: (response: string) => decryptData(response),
       providesTags: ['Exceptions'],
     }),
 
     // Get exceptions by supplier
+    // AngularJS: Request ENCRYPTED, Response NOT decrypted (decryption commented out)
     getExceptionsBySupplier: builder.query<ExceptionItem[][], BaseQueryParams & { supplier_id: string }>({
       query: (params) => ({
         url: BUSINESS_TASKS_ENDPOINTS.FETCH_EXCEPTION_BY_SUPPLIER,
@@ -198,7 +215,6 @@ export const businessTasksApi = createApi({
         body: encryptData(params),
         headers: { 'Content-Type': 'text/plain' },
       }),
-      transformResponse: (response: string) => decryptData(response),
       providesTags: ['Exceptions'],
     }),
 
@@ -215,30 +231,29 @@ export const businessTasksApi = createApi({
     }),
 
     // Load processed queue data
+    // AngularJS: NO encryption - plain JSON both ways
     getProcessedQueueData: builder.query<ProcessedQueueData[][], PaginatedQueryParams>({
       query: (params) => ({
         url: BUSINESS_TASKS_ENDPOINTS.LOAD_PROCESSED_QUEUE_DATA,
         method: 'POST',
-        body: encryptData(params),
-        headers: { 'Content-Type': 'text/plain' },
+        body: params,
       }),
-      transformResponse: (response: string) => decryptData(response),
       providesTags: ['Processed'],
     }),
 
     // Search processed queue data
+    // AngularJS: NO encryption - plain JSON both ways
     searchProcessedQueueData: builder.mutation<ProcessedQueueData[][], SearchQueryParams>({
       query: (params) => ({
         url: BUSINESS_TASKS_ENDPOINTS.SEARCH_PROCESSED_QUEUE_DATA,
         method: 'POST',
-        body: encryptData(params),
-        headers: { 'Content-Type': 'text/plain' },
+        body: params,
       }),
-      transformResponse: (response: string) => decryptData(response),
       invalidatesTags: ['Processed'],
     }),
 
     // Get recent workflows
+    // AngularJS: decrypt -> res[0].recent_TasksWorkflows_json_data -> JSON.parse
     getRecentWorkflows: builder.query<RecentWorkflow[][], PaginatedQueryParams>({
       query: (params) => ({
         url: BUSINESS_TASKS_ENDPOINTS.RECENT_WORKFLOWS,
@@ -246,7 +261,26 @@ export const businessTasksApi = createApi({
         body: encryptData(params),
         headers: { 'Content-Type': 'text/plain' },
       }),
-      transformResponse: (response: string) => decryptData(response),
+      transformResponse: (response: string) => {
+        try {
+          const decrypted = decryptData<any>(response);
+          // Check for error/no data
+          if (decrypted?.[0]?.[0]?.result && decrypted[0][0].result !== 'Success') {
+            return [[]];
+          }
+          // AngularJS deep extraction: res[0].recent_TasksWorkflows_json_data
+          if (decrypted?.[0]?.recent_TasksWorkflows_json_data) {
+            const workflows = JSON.parse(decrypted[0].recent_TasksWorkflows_json_data);
+            // Return [workflows, counts] structure matching view expectation
+            const counts = decrypted[1] || [];
+            return [workflows, counts];
+          }
+          // If data is already in expected array format, return as-is
+          return decrypted;
+        } catch {
+          return decryptData(response);
+        }
+      },
       providesTags: ['Recent'],
     }),
 
@@ -275,6 +309,7 @@ export const businessTasksApi = createApi({
     }),
 
     // Get past due workflows
+    // AngularJS: decrypt -> res[0].pastDue_TasksWorkflows_json_data -> JSON.parse
     getPastDueWorkflows: builder.query<PastDueWorkflow[][], PaginatedQueryParams>({
       query: (params) => ({
         url: BUSINESS_TASKS_ENDPOINTS.PAST_DUE_WORKFLOWS,
@@ -282,7 +317,31 @@ export const businessTasksApi = createApi({
         body: encryptData(params),
         headers: { 'Content-Type': 'text/plain' },
       }),
-      transformResponse: (response: string) => decryptData(response),
+      transformResponse: (response: string) => {
+        try {
+          const decrypted = decryptData<any>(response);
+          // Check for error/no data
+          if (decrypted?.[0]?.[0]?.result && decrypted[0][0].result !== 'Success') {
+            return [[]];
+          }
+          // AngularJS deep extraction: res[0].pastDue_TasksWorkflows_json_data
+          if (decrypted?.[0]?.pastDue_TasksWorkflows_json_data) {
+            const workflows = JSON.parse(decrypted[0].pastDue_TasksWorkflows_json_data);
+            // Counts from res[1][0].pastDue_TasksWorkflows_Counts_data
+            let counts: any[] = [];
+            if (decrypted?.[1]?.[0]?.pastDue_TasksWorkflows_Counts_data) {
+              const countsData = JSON.parse(decrypted[1][0].pastDue_TasksWorkflows_Counts_data);
+              counts = countsData;
+            } else if (decrypted?.[1]) {
+              counts = decrypted[1];
+            }
+            return [workflows, counts];
+          }
+          return decrypted;
+        } catch {
+          return decryptData(response);
+        }
+      },
       providesTags: ['PastDue'],
     }),
 
@@ -299,6 +358,7 @@ export const businessTasksApi = createApi({
     }),
 
     // Get custom workflows
+    // AngularJS: decrypt -> res[0].custom_TasksWorkflows_json_data -> JSON.parse
     getCustomWorkflows: builder.query<CustomWorkflow[][], PaginatedQueryParams & DateRangeQueryParams>({
       query: (params) => ({
         url: BUSINESS_TASKS_ENDPOINTS.CUSTOM_WORKFLOWS,
@@ -306,7 +366,31 @@ export const businessTasksApi = createApi({
         body: encryptData(params),
         headers: { 'Content-Type': 'text/plain' },
       }),
-      transformResponse: (response: string) => decryptData(response),
+      transformResponse: (response: string) => {
+        try {
+          const decrypted = decryptData<any>(response);
+          // Check for error/no data
+          if (decrypted?.[0]?.[0]?.result && decrypted[0][0].result !== 'Success') {
+            return [[]];
+          }
+          // AngularJS deep extraction: res[0].custom_TasksWorkflows_json_data
+          if (decrypted?.[0]?.custom_TasksWorkflows_json_data) {
+            const workflows = JSON.parse(decrypted[0].custom_TasksWorkflows_json_data);
+            // Counts from res[1][0].custom_TasksWorkflows_Counts_data
+            let counts: any[] = [];
+            if (decrypted?.[1]?.[0]?.custom_TasksWorkflows_Counts_data) {
+              const countsData = JSON.parse(decrypted[1][0].custom_TasksWorkflows_Counts_data);
+              counts = countsData;
+            } else if (decrypted?.[1]) {
+              counts = decrypted[1];
+            }
+            return [workflows, counts];
+          }
+          return decrypted;
+        } catch {
+          return decryptData(response);
+        }
+      },
     }),
 
     // Search custom tasks

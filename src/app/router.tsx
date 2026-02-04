@@ -62,6 +62,16 @@ export function resolveHomepage(roleHomepage: string): string {
     businesstaskscontroller: '/BusinessTasks',
     businessappscontroller: '/BusinessApps',
 
+    // Workflow action page routes
+    dataentryadmin: '/DataEntryAdmin',
+    dataentrypage: '/DataEntryPage',
+    datavalidation: '/DataValidation',
+    techopsticketpreview: '/TechOpsTicketPreview',
+    businesscompliance: '/BusinessCompliance',
+    activetasksdataentryadminpage: '/ActiveTasksDataEntryAdminPage',
+    activetasksdataentrypage: '/ActiveTasksDataEntryPage',
+    activetasksdatavalidation: '/ActiveTasksDataValidation',
+
     // Short aliases from $rootScope.pathMapping
     home: '/BusinessHomeViews',
     tasks: '/BusinessTasks',
@@ -128,6 +138,16 @@ export const AppRouter: React.FC = () => {
       <Route path="/BusinessHomeViews" element={<ProtectedRoute><NavigationShellView><BusinessHomeView /></NavigationShellView></ProtectedRoute>} />
       <Route path="/BusinessTasks" element={<ProtectedRoute><NavigationShellView><BusinessTasksView /></NavigationShellView></ProtectedRoute>} />
       <Route path="/BusinessApps" element={<ProtectedRoute><NavigationShellView><BusinessAppsView /></NavigationShellView></ProtectedRoute>} />
+      {/* Workflow Action Pages (navigated from BusinessApps queue actions) */}
+      <Route path="/DataEntryAdmin" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/DataEntryPage" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/DataValidation" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/TechOpsTicketPreview" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/BusinessCompliance" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/ActiveTasksDataEntryAdminPage" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/ActiveTasksDataEntryPage" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/ActiveTasksDataValidation" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
+
       <Route path="/Admin" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/Setting" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/SLADashBoard" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />

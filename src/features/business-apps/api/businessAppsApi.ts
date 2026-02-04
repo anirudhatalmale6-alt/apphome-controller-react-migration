@@ -270,15 +270,23 @@ export const businessAppsApi = createApi({
      * Load display time for inbox
      * Origin: $rootScope.loadAppDisplayTimeForInbox
      */
+    // AngularJS: NO encryption - plain JSON request & response
+    // Field: display_timezone (not display_time)
     loadDisplayTimeForInbox: builder.query<string, { customer_id: string; bps_id: string }>({
       query: (input) => ({
         url: BUSINESS_APPS_ENDPOINTS.LOAD_DISPLAY_TIME,
         method: 'POST',
-        body: encryptData(input),
+        body: input,
       }),
-      transformResponse: (response: string) => {
-        const decrypted = decryptData<[[{ display_time: string }]]>(response);
-        return decrypted[0][0].display_time;
+      transformResponse: (response: { display_timezone: string }[][] | any) => {
+        try {
+          if (Array.isArray(response) && response[0] && response[0][0]) {
+            return response[0][0].display_timezone || '';
+          }
+          return '';
+        } catch {
+          return '';
+        }
       },
     }),
 

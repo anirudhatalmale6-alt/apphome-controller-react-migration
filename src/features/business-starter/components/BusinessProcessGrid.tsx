@@ -37,32 +37,47 @@ export const BusinessProcessGrid: React.FC<BusinessProcessGridProps> = ({
   };
 
   const handleSelectBps = (bps: BusinessProcess) => {
-    // Update auth user context with the selected BPS/customer so downstream
-    // controllers (Home, Tasks, Apps) pick up the correct IDs for API calls
-    dispatch(updateUserContext({
-      customer_id: selectedCustomerId || undefined,
-      bps_id: bps.bps_id,
-      sp_process_id: bps.bps_id,
-    }));
+    console.log('[BPS Click] Selected BPS:', bps.bps_id, bps.bps_desc, 'customerId:', selectedCustomerId, 'bu_list length:', bps.bu_list?.length);
 
-    // Group BU/dept/queue hierarchy from the BPS data
-    if (bps.bu_list && bps.bu_list.length > 0) {
-      handleGroupBusinessUnit(bps.bu_list as unknown as import('../types/BusinessStarterTypes').Queue[]);
+    try {
+      // Update auth user context with the selected BPS/customer so downstream
+      // controllers (Home, Tasks, Apps) pick up the correct IDs for API calls
+      const custId = selectedCustomerId || (bps.bu_list?.[0] as any)?.customer_id || '';
+      dispatch(updateUserContext({
+        customer_id: custId || undefined,
+        bps_id: bps.bps_id,
+        sp_process_id: bps.bps_id,
+      }));
+
+      // Set selected business process info (AngularJS: $rootScope.selectedBusinessProcessId, etc.)
+      dispatch(updateUserContext({
+        bps_id: bps.bps_id,
+      }));
+
+      // Group BU/dept/queue hierarchy from the BPS data
+      if (bps.bu_list && bps.bu_list.length > 0) {
+        handleGroupBusinessUnit(bps.bu_list as unknown as import('../types/BusinessStarterTypes').Queue[]);
+      }
+
+      // Trigger load_business_config API (AngularJS: $rootScope.loadBusinessConfig)
+      const configCustomerId = custId || authState.user?.customer_id || '';
+      if (configCustomerId && bps.bps_id) {
+        console.log('[BPS Click] Triggering load_business_config:', { customer_id: configCustomerId, bps_id: bps.bps_id });
+        triggerBusinessConfig(
+          {
+            customer_id: configCustomerId,
+            bps_id: bps.bps_id,
+            user_id: authState.user?.user_id || '',
+          },
+          false
+        );
+      }
+    } catch (err) {
+      console.error('[BPS Click] Error in handleSelectBps:', err);
     }
 
-    // Trigger load_business_config API (AngularJS: $rootScope.loadBusinessConfig)
-    if (selectedCustomerId && bps.bps_id) {
-      triggerBusinessConfig(
-        {
-          customer_id: selectedCustomerId,
-          bps_id: bps.bps_id,
-          user_id: authState.user?.user_id || '',
-        },
-        false
-      );
-    }
-
-    // Navigate to BusinessHomeViews (always navigate, even if bu_list is empty)
+    // Navigate to BusinessHomeViews (always navigate, even on error)
+    console.log('[BPS Click] Navigating to /BusinessHomeViews');
     navigate('/BusinessHomeViews');
   };
 

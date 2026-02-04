@@ -218,6 +218,8 @@ export const BusinessStarterView: React.FC = () => {
     const customer = selectedCustomerList[index];
     if (!customer) return;
 
+    console.log('[selectPartner] index:', index, 'customer_id:', customer.customer_id, 'name:', customer.customer_name, 'bps_list length:', customer.bps_list?.length);
+
     // Update active company state
     dispatch(selectPartnerAction(index));
     dispatch(setSelectedCustomer({ id: customer.customer_id, name: customer.customer_name }));
@@ -255,6 +257,8 @@ export const BusinessStarterView: React.FC = () => {
       dispatch(setInsightsTabs(isFirstCompany ? DEFAULT_SUPER_TABS : DEFAULT_NON_SUPER_TABS));
     }
 
+    console.log('[selectPartner] isFirstCompany:', isFirstCompany, 'bpaasWorkflowTabs:', bpaasWorkflowTabs?.length);
+
     if (isFirstCompany) {
       // Super company → load Customer Performance Dashboard
       loadInsightsData();
@@ -264,6 +268,7 @@ export const BusinessStarterView: React.FC = () => {
       if (customer.bps_list && customer.bps_list.length > 0) {
         const groupedByBps = groupByBusinessProcessId(customer.bps_list as any[]);
         const bpsList = createBpsListForDisplay(groupedByBps as any);
+        console.log('[selectPartner] BPS list created:', bpsList.length, 'rows, first BPS:', bpsList[0]?.[0]?.bps_desc, 'bu_list:', bpsList[0]?.[0]?.bu_list?.length);
         dispatch(setSelectedBpsList(bpsList));
       } else if (businessProcessList && Object.keys(businessProcessList).length > 0) {
         const bpsList = createBpsListForDisplay(businessProcessList);

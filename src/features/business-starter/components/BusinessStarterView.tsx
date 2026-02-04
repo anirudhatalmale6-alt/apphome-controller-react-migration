@@ -33,13 +33,14 @@ import {
   useLazyLoadAdminTechopsQuery,
 } from '../api/businessStarterApi';
 import { selectAuth, updateUserContext } from '../../authentication/store/authSlice';
+import { useLazyGetBusinessConfigQuery } from '../../business-home/api/businessHomeApi';
 import { CompanySelector } from './CompanySelector';
 import { InsightsTabs } from './InsightsTabs';
 import { BusinessProcessGrid } from './BusinessProcessGrid';
 import { AdminSettingsPanel } from './AdminSettingsPanel';
 import { TechOpsInbox } from './TechOpsInbox';
 import { CustomerDashboard } from './CustomerDashboard';
-import { createBpsListForDisplay } from '../services/BusinessStarterService';
+import { createBpsListForDisplay, groupByBusinessProcessId } from '../services/BusinessStarterService';
 import type { InsightTab } from '../types/BusinessStarterTypes';
 import './BusinessStarterView.css';
 
@@ -61,6 +62,7 @@ export const BusinessStarterView: React.FC = () => {
   const [triggerDashboard] = useLazyLoadCustomerDashboardQuery();
   const [triggerAdminSettings] = useLazyLoadAdminSettingsQuery();
   const [triggerAdminTechops] = useLazyLoadAdminTechopsQuery();
+  const [triggerBusinessConfig] = useLazyGetBusinessConfigQuery();
 
   // Local UI state
   const [isContentLoading, setIsContentLoading] = useState(false);
@@ -208,25 +210,28 @@ export const BusinessStarterView: React.FC = () => {
       loadInsightsData();
     } else {
       // Non-super company → show BPS grid from sign-in response
+      // Group by bps_id to deduplicate (AngularJS: _.groupBy(bps_list, 'bps_id'))
       if (customer.bps_list && customer.bps_list.length > 0) {
-        // Build BPS display list from the sign-in response
-        const bpsGrid: any[][] = [];
-        let row: any[] = [];
-        customer.bps_list.forEach((bps: any, i: number) => {
-          row.push(bps);
-          if ((i + 1) % 4 === 0) {
-            bpsGrid.push(row);
-            row = [];
-          }
-        });
-        if (row.length > 0) bpsGrid.push(row);
-        dispatch(setSelectedBpsList(bpsGrid));
+        const groupedByBps = groupByBusinessProcessId(customer.bps_list as any[]);
+        const bpsList = createBpsListForDisplay(groupedByBps as any);
+        dispatch(setSelectedBpsList(bpsList));
+
+        // Trigger load_business_config (AngularJS: $rootScope.loadBusinessConfig)
+        // Uses first BPS from the customer's list
+        const firstBpsId = (customer.bps_list[0] as any).bps_id || '';
+        if (firstBpsId) {
+          dispatch(updateUserContext({ bps_id: firstBpsId }));
+          triggerBusinessConfig(
+            { customer_id: customer.customer_id, bps_id: firstBpsId, user_id: authState.user?.user_id || '' },
+            false
+          );
+        }
       } else if (businessProcessList && Object.keys(businessProcessList).length > 0) {
         const bpsList = createBpsListForDisplay(businessProcessList);
         dispatch(setSelectedBpsList(bpsList));
       }
     }
-  }, [dispatch, selectedCustomerList, businessProcessList, loadInsightsData]);
+  }, [dispatch, selectedCustomerList, businessProcessList, loadInsightsData, triggerBusinessConfig, authState.user]);
 
   // ─── Back navigation handlers ───
   const handleGoBackToCustomerList = useCallback(() => {

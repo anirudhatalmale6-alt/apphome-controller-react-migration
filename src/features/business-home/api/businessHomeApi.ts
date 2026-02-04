@@ -296,6 +296,7 @@ export const {
   useGetExceptionSupplierCountQuery,
   useGetExceptionBySupplierQuery,
   useGetBusinessConfigQuery,
+  useLazyGetBusinessConfigQuery,
   useGetBatchInventoryOverviewQuery,
   useLazyGetBatchInventoryOverviewQuery,
   useGetBatchInventory30_60_90Query,

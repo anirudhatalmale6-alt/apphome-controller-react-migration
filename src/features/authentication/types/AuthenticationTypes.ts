@@ -24,8 +24,16 @@ export interface SignInResponse {
   user_login_id: string;
   user_name: string;
   customer_id: string;
+  customer_name?: string;
+  customer_logo?: string;
   bps_id: string;
+  bps_desc?: string;
+  bps_logo?: string;
+  lobtype?: string;
+  contract_start_date?: string;
+  contract_end_date?: string;
   bu_id: string;
+  bu_desc?: string;
   tps_id?: string;
   dept_id?: string;
   queue_id?: string;

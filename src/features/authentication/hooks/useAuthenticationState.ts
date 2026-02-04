@@ -31,6 +31,18 @@ import {
   resetAuthState,
 } from '../store/authSlice';
 import {
+  setSelectedCustomerList,
+  setBusinessPartnerList,
+  setBusinessProcessList,
+  setLandingPageNumber,
+  setProfileSwitchingEnabled,
+} from '../../business-starter/store/businessStarterSlice';
+import {
+  groupByCustomerId,
+  groupByBusinessProcessId,
+  createCustomerListFromPartners,
+} from '../../business-starter/services/BusinessStarterService';
+import {
   useSignInMutation,
   useSetLoginStatusMutation,
   useValidateUserMutation,
@@ -241,6 +253,29 @@ export const useAuthenticationState = () => {
         sessionStorage.setItem('auth_user', username);
       } catch {
         // Storage unavailable
+      }
+
+      // ─── Build customer list from sign-in response (replicates AngularJS startMyBusiness) ───
+      // parsed[0] = authenticationData: array of all BPS/customer rows for this user
+      const authenticationData = parsed[0] || [];
+      if (authenticationData.length > 0) {
+        // Group by customer_id (like AngularJS _.groupBy($rootScope.authenticationData, 'customer_id'))
+        const businessPartnerList = groupByCustomerId(authenticationData as any[]);
+        dispatch(setBusinessPartnerList(businessPartnerList as any));
+
+        const customerKeys = Object.keys(businessPartnerList);
+        if (customerKeys.length >= 1) {
+          // Build customer list for the company selector
+          const customerList = createCustomerListFromPartners(businessPartnerList as any);
+          dispatch(setSelectedCustomerList(customerList));
+          dispatch(setProfileSwitchingEnabled(customerKeys.length > 1));
+
+          // Also group by bps_id for BPS grid display (for non-super companies)
+          const bpsList = groupByBusinessProcessId(authenticationData as any[]);
+          dispatch(setBusinessProcessList(bpsList as any));
+        }
+
+        dispatch(setLandingPageNumber(1));
       }
 
       return user.role_homepage;

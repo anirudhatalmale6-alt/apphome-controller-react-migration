@@ -161,7 +161,11 @@ export const businessAppsApi = createApi({
 
     /**
      * Load business unit queue actions
-     * Origin: $rootScope.loadQueueData
+     * Origin: $rootScope.loadQueueData + $rootScope.load_BuQueueActions
+     *
+     * The API returns the raw BU/Queue structure. The AngularJS code did heavy
+     * client-side processing (filtering by bu_desc, parsing workflow_inbox_config JSON).
+     * We replicate that here so the view receives ready-to-render QueueItem[].
      */
     loadBuQueueActions: builder.query<QueueItem[], LoadQueueDataInput>({
       query: (input) => ({
@@ -169,7 +173,79 @@ export const businessAppsApi = createApi({
         method: 'POST',
         body: encryptData(input),
       }),
-      transformResponse: (response: string) => decryptData(response),
+      transformResponse: (response: string) => {
+        try {
+          const decrypted = decryptData<any[]>(response);
+          if (!decrypted || !Array.isArray(decrypted)) return [];
+
+          // The API may return nested arrays or a flat array of BU items
+          // Each BU item has: bu_desc, bu_id, tps_id, dept_id, queue_info[]
+          // queue_info items have: custom_queue_name, queue_id, workflow_inbox_config (JSON string)
+          const rawItems = Array.isArray(decrypted[0]) ? decrypted[0] : decrypted;
+
+          // Check for API error response
+          if (rawItems.length > 0 && rawItems[0]?.result && rawItems[0].result !== 'Success') {
+            return [];
+          }
+
+          const queueItems: QueueItem[] = [];
+          let displayId = 0;
+
+          rawItems.forEach((buItem: any) => {
+            if (!buItem) return;
+
+            // If item already has QueueNames (pre-processed), use as-is
+            if (buItem.QueueNames !== undefined) {
+              queueItems.push(buItem as QueueItem);
+              return;
+            }
+
+            // Process raw BU item with queue_info array
+            if (buItem.queue_info && Array.isArray(buItem.queue_info)) {
+              buItem.queue_info.forEach((queue: any) => {
+                const queueItem: QueueItem = {
+                  QueueNames: queue.custom_queue_name || queue.queue_name || '',
+                  queue_id: queue.queue_id || '',
+                  QueueProperties: [],
+                  display_id: displayId++,
+                };
+
+                // Parse workflow_inbox_config JSON string into QueueProperties
+                try {
+                  const configStr = queue.workflow_inbox_config;
+                  if (configStr) {
+                    const config = typeof configStr === 'string' ? JSON.parse(configStr) : configStr;
+                    if (Array.isArray(config)) {
+                      let idCounter = 0;
+                      config.forEach((item: any) => {
+                        for (const key in item) {
+                          if (key !== 'isActionEnabled' && key !== 'displayName' && key !== 'workflowName') {
+                            queueItem.QueueProperties.push({
+                              bPaaS_workflow_status: key.charAt(0).toUpperCase() + key.slice(1),
+                              bPaaS_workflow_id: String(idCounter++),
+                              count: 0,
+                              displayName: item.displayName || key,
+                              isActionEnabled: item.isActionEnabled !== false,
+                            });
+                          }
+                        }
+                      });
+                    }
+                  }
+                } catch {
+                  // Safe fallback on JSON parse error
+                }
+
+                queueItems.push(queueItem);
+              });
+            }
+          });
+
+          return queueItems;
+        } catch {
+          return [];
+        }
+      },
       providesTags: ['QueueActions'],
     }),
 

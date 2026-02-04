@@ -51,6 +51,9 @@ export function resolveHomepage(roleHomepage: string): string {
     help: '/help',
     termsofservice: '/TermsofService',
 
+    // AngularJS primary route - this is the most common value returned by the sign-in API
+    bpaasworkflow: '/BusinessStarter',
+
     // Legacy AngularJS controller/page names that may still come from the API
     businessstarterctrl: '/BusinessStarter',
     businessstarterpage: '/BusinessStarter',
@@ -100,7 +103,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   if (isAuthenticated) {
-    return <Navigate to="/BusinessHomeViews" replace />;
+    return <Navigate to="/BusinessStarter" replace />;
   }
 
   return <>{children}</>;
@@ -120,6 +123,7 @@ export const AppRouter: React.FC = () => {
       <Route path="/password-setup" element={<PasswordSetupPage />} />
 
       {/* Protected Routes */}
+      <Route path="/BPaaSWorkflow" element={<ProtectedRoute><BusinessStarterView /></ProtectedRoute>} />
       <Route path="/BusinessStarter" element={<ProtectedRoute><BusinessStarterView /></ProtectedRoute>} />
       <Route path="/BusinessHomeViews" element={<ProtectedRoute><NavigationShellView><BusinessHomeView /></NavigationShellView></ProtectedRoute>} />
       <Route path="/BusinessTasks" element={<ProtectedRoute><NavigationShellView><BusinessTasksView /></NavigationShellView></ProtectedRoute>} />

@@ -36,6 +36,7 @@ import {
   setBusinessProcessList,
   setLandingPageNumber,
   setProfileSwitchingEnabled,
+  setBpaasWorkflowTabs,
 } from '../../business-starter/store/businessStarterSlice';
 import {
   groupByCustomerId,
@@ -256,8 +257,17 @@ export const useAuthenticationState = () => {
       }
 
       // ─── Build customer list from sign-in response (replicates AngularJS startMyBusiness) ───
+      // Sign-in response structure: [authData, lobData, BPaaSWorkflowTabs, attemptsData]
       // parsed[0] = authenticationData: array of all BPS/customer rows for this user
+      // parsed[2] = BPaaSWorkflowTabs: tab configs (index 0 = super company, index 1 = non-super)
       const authenticationData = parsed[0] || [];
+
+      // Store BPaaSWorkflowTabs from response[2] (tab configurations per company type)
+      const bpaasWorkflowTabs = (parsed as any)[2];
+      if (Array.isArray(bpaasWorkflowTabs) && bpaasWorkflowTabs.length > 0) {
+        dispatch(setBpaasWorkflowTabs(bpaasWorkflowTabs));
+      }
+
       if (authenticationData.length > 0) {
         // Group by customer_id (like AngularJS _.groupBy($rootScope.authenticationData, 'customer_id'))
         const businessPartnerList = groupByCustomerId(authenticationData as any[]);

@@ -6,9 +6,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
-import { updateUserContext } from '../../authentication/store/authSlice';
+import { updateUserContext, selectAuth } from '../../authentication/store/authSlice';
 import { selectBusinessStarter } from '../store/businessStarterSlice';
 import { useBusinessStarterState } from '../hooks/useBusinessStarterState';
+import { useLazyGetBusinessConfigQuery } from '../../business-home/api/businessHomeApi';
 import type { BusinessProcess } from '../types/BusinessStarterTypes';
 
 interface BusinessProcessGridProps {
@@ -25,7 +26,9 @@ export const BusinessProcessGrid: React.FC<BusinessProcessGridProps> = ({
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { selectedCustomerId } = useAppSelector(selectBusinessStarter);
+  const authState = useAppSelector(selectAuth);
   const { handleFilterBusinessProcess, handleGroupBusinessUnit } = useBusinessStarterState();
+  const [triggerBusinessConfig] = useLazyGetBusinessConfigQuery();
   const [searchInput, setSearchInput] = useState('');
 
   const handleSearch = (value: string) => {
@@ -34,18 +37,33 @@ export const BusinessProcessGrid: React.FC<BusinessProcessGridProps> = ({
   };
 
   const handleSelectBps = (bps: BusinessProcess) => {
-    if (bps.bu_list) {
-      // Update auth user context with the selected BPS/customer so downstream
-      // controllers (Home, Tasks, Apps) pick up the correct IDs for API calls
-      dispatch(updateUserContext({
-        customer_id: selectedCustomerId || undefined,
-        bps_id: bps.bps_id,
-        sp_process_id: bps.bps_id,
-      }));
+    // Update auth user context with the selected BPS/customer so downstream
+    // controllers (Home, Tasks, Apps) pick up the correct IDs for API calls
+    dispatch(updateUserContext({
+      customer_id: selectedCustomerId || undefined,
+      bps_id: bps.bps_id,
+      sp_process_id: bps.bps_id,
+    }));
 
+    // Group BU/dept/queue hierarchy from the BPS data
+    if (bps.bu_list && bps.bu_list.length > 0) {
       handleGroupBusinessUnit(bps.bu_list as unknown as import('../types/BusinessStarterTypes').Queue[]);
-      navigate('/BusinessHomeViews');
     }
+
+    // Trigger load_business_config API (AngularJS: $rootScope.loadBusinessConfig)
+    if (selectedCustomerId && bps.bps_id) {
+      triggerBusinessConfig(
+        {
+          customer_id: selectedCustomerId,
+          bps_id: bps.bps_id,
+          user_id: authState.user?.user_id || '',
+        },
+        false
+      );
+    }
+
+    // Navigate to BusinessHomeViews (always navigate, even if bu_list is empty)
+    navigate('/BusinessHomeViews');
   };
 
   return (

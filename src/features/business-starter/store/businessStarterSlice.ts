@@ -54,6 +54,7 @@ const initialState: BusinessStarterState = {
   isGridView: false,
   selectedInsightsTab: 0,
   insightsTabs: [],
+  bpaasWorkflowTabs: [],
 
   // Dashboard data
   customerDashboardData: null,
@@ -176,6 +177,9 @@ const businessStarterSlice = createSlice({
     setInsightsTabs: (state, action: PayloadAction<InsightTab[]>) => {
       state.insightsTabs = action.payload;
     },
+    setBpaasWorkflowTabs: (state, action: PayloadAction<any[]>) => {
+      state.bpaasWorkflowTabs = action.payload;
+    },
 
     // Dashboard data actions
     setCustomerDashboardData: (state, action: PayloadAction<CustomerDashboardData>) => {
@@ -285,6 +289,7 @@ export const {
   toggleGridView,
   setSelectedInsightsTab,
   setInsightsTabs,
+  setBpaasWorkflowTabs,
   setCustomerDashboardData,
   setSelectedBps,
   setAdminQueues,

@@ -33,7 +33,6 @@ import {
   useLazyLoadAdminTechopsQuery,
 } from '../api/businessStarterApi';
 import { selectAuth, updateUserContext } from '../../authentication/store/authSlice';
-import { useLazyGetBusinessConfigQuery } from '../../business-home/api/businessHomeApi';
 import { CompanySelector } from './CompanySelector';
 import { InsightsTabs } from './InsightsTabs';
 import { BusinessProcessGrid } from './BusinessProcessGrid';
@@ -45,13 +44,40 @@ import type { InsightTab } from '../types/BusinessStarterTypes';
 import './BusinessStarterView.css';
 
 /**
- * Default tab configuration when none come from API
+ * Default tab configuration for super company (index 0) when BPaaSWorkflowTabs not available
  */
-const DEFAULT_TABS: InsightTab[] = [
+const DEFAULT_SUPER_TABS: InsightTab[] = [
   { title: 'Insights', enable_label: 1 },
   { title: 'Admin Settings', enable_label: 1 },
   { title: 'TechOps', enable_label: 1 },
 ];
+
+/**
+ * Default tab configuration for non-super companies - only Business Process
+ */
+const DEFAULT_NON_SUPER_TABS: InsightTab[] = [
+  { title: 'Business Process', enable_label: 1 },
+];
+
+/**
+ * Parse BPaaS_Workflow_TabsConfigs JSON from the tab config object
+ * AngularJS: JSON.parse(selectedTabConfig.BPaaS_Workflow_TabsConfigs)
+ */
+function parseBpaasTabConfig(tabConfig: any): InsightTab[] {
+  if (!tabConfig) return [];
+  try {
+    const configStr = tabConfig.BPaaS_Workflow_TabsConfigs;
+    if (typeof configStr === 'string') {
+      return JSON.parse(configStr);
+    }
+    if (Array.isArray(configStr)) {
+      return configStr;
+    }
+  } catch (e) {
+    console.error('Failed to parse BPaaS_Workflow_TabsConfigs:', e);
+  }
+  return [];
+}
 
 export const BusinessStarterView: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -62,7 +88,6 @@ export const BusinessStarterView: React.FC = () => {
   const [triggerDashboard] = useLazyLoadCustomerDashboardQuery();
   const [triggerAdminSettings] = useLazyLoadAdminSettingsQuery();
   const [triggerAdminTechops] = useLazyLoadAdminTechopsQuery();
-  const [triggerBusinessConfig] = useLazyGetBusinessConfigQuery();
 
   // Local UI state
   const [isContentLoading, setIsContentLoading] = useState(false);
@@ -82,13 +107,18 @@ export const BusinessStarterView: React.FC = () => {
     selectedCustomerId,
     isGridView,
     businessProcessList,
+    bpaasWorkflowTabs,
   } = state;
-
-  const tabs = insightsTabs.length > 0 ? insightsTabs : DEFAULT_TABS;
 
   // Determine if super company (first company = Insights/Dashboard view)
   const isSuperCompany = selectedCustomerList.length > 0 &&
     selectedCustomerList[0]?.isSelected === true;
+
+  // Resolve tabs: use insightsTabs from store (set per company selection)
+  // Fallback: super company shows 3 tabs, non-super shows only "Business Process"
+  const tabs = insightsTabs.length > 0
+    ? insightsTabs
+    : (isSuperCompany ? DEFAULT_SUPER_TABS : DEFAULT_NON_SUPER_TABS);
 
   // ─── Credentials for API calls ───
   const userCredentials = {
@@ -183,6 +213,7 @@ export const BusinessStarterView: React.FC = () => {
   }, [dispatch, isSuperCompany, loadInsightsData, loadAdminSettingsData, loadTechopsData]);
 
   // ─── Company Selection Handler (event-driven) ───
+  // Replicates AngularJS $watch on selectedCustomerId that swaps BPaaSWorkflowTabs
   const handleSelectPartner = useCallback((index: number) => {
     const customer = selectedCustomerList[index];
     if (!customer) return;
@@ -194,7 +225,7 @@ export const BusinessStarterView: React.FC = () => {
     // Propagate customer_id to auth user context so downstream controllers use it
     dispatch(updateUserContext({ customer_id: customer.customer_id }));
 
-    // Reset tab to default (Insights)
+    // Reset tab to default (first tab)
     dispatch(setSelectedInsightsTab(0));
     dispatch(setSelectedBps(null));
     dispatch(setSelectedTechopsBps(null));
@@ -204,6 +235,25 @@ export const BusinessStarterView: React.FC = () => {
     dispatch(setCustomerDashboardData(null as any));
 
     const isFirstCompany = index === 0;
+
+    // ─── Swap tabs based on company type (AngularJS $watch on selectedCustomerId) ───
+    // AngularJS: newVal == 1 ? BPaaSWorkflowTabs[0] : BPaaSWorkflowTabs[1]
+    // Then parses BPaaS_Workflow_TabsConfigs JSON to get the tab list
+    if (bpaasWorkflowTabs && bpaasWorkflowTabs.length > 0) {
+      const selectedTabConfig = isFirstCompany
+        ? bpaasWorkflowTabs[0]
+        : bpaasWorkflowTabs[1];
+      const parsedTabs = parseBpaasTabConfig(selectedTabConfig);
+      if (parsedTabs.length > 0) {
+        dispatch(setInsightsTabs(parsedTabs));
+      } else {
+        // Fallback if parsing fails
+        dispatch(setInsightsTabs(isFirstCompany ? DEFAULT_SUPER_TABS : DEFAULT_NON_SUPER_TABS));
+      }
+    } else {
+      // No BPaaSWorkflowTabs from API - use defaults
+      dispatch(setInsightsTabs(isFirstCompany ? DEFAULT_SUPER_TABS : DEFAULT_NON_SUPER_TABS));
+    }
 
     if (isFirstCompany) {
       // Super company → load Customer Performance Dashboard
@@ -215,23 +265,12 @@ export const BusinessStarterView: React.FC = () => {
         const groupedByBps = groupByBusinessProcessId(customer.bps_list as any[]);
         const bpsList = createBpsListForDisplay(groupedByBps as any);
         dispatch(setSelectedBpsList(bpsList));
-
-        // Trigger load_business_config (AngularJS: $rootScope.loadBusinessConfig)
-        // Uses first BPS from the customer's list
-        const firstBpsId = (customer.bps_list[0] as any).bps_id || '';
-        if (firstBpsId) {
-          dispatch(updateUserContext({ bps_id: firstBpsId }));
-          triggerBusinessConfig(
-            { customer_id: customer.customer_id, bps_id: firstBpsId, user_id: authState.user?.user_id || '' },
-            false
-          );
-        }
       } else if (businessProcessList && Object.keys(businessProcessList).length > 0) {
         const bpsList = createBpsListForDisplay(businessProcessList);
         dispatch(setSelectedBpsList(bpsList));
       }
     }
-  }, [dispatch, selectedCustomerList, businessProcessList, loadInsightsData, triggerBusinessConfig, authState.user]);
+  }, [dispatch, selectedCustomerList, businessProcessList, bpaasWorkflowTabs, loadInsightsData, authState.user]);
 
   // ─── Back navigation handlers ───
   const handleGoBackToCustomerList = useCallback(() => {
@@ -266,9 +305,16 @@ export const BusinessStarterView: React.FC = () => {
     // Set landing page to 1 so content renders
     dispatch(setLandingPageNumber(1));
 
-    // Set default tabs if not already set
-    if (insightsTabs.length === 0) {
-      dispatch(setInsightsTabs(DEFAULT_TABS));
+    // Set tabs for first company (super company)
+    if (bpaasWorkflowTabs && bpaasWorkflowTabs.length > 0) {
+      const parsedTabs = parseBpaasTabConfig(bpaasWorkflowTabs[0]);
+      if (parsedTabs.length > 0) {
+        dispatch(setInsightsTabs(parsedTabs));
+      } else {
+        dispatch(setInsightsTabs(DEFAULT_SUPER_TABS));
+      }
+    } else if (insightsTabs.length === 0) {
+      dispatch(setInsightsTabs(DEFAULT_SUPER_TABS));
     }
 
     // Auto-select first company if available
@@ -297,6 +343,17 @@ export const BusinessStarterView: React.FC = () => {
         name: firstCustomer.customer_name,
       }));
       dispatch(setLandingPageNumber(1));
+
+      // Set tabs for first company (super company)
+      if (bpaasWorkflowTabs && bpaasWorkflowTabs.length > 0) {
+        const parsedTabs = parseBpaasTabConfig(bpaasWorkflowTabs[0]);
+        if (parsedTabs.length > 0) {
+          dispatch(setInsightsTabs(parsedTabs));
+        } else {
+          dispatch(setInsightsTabs(DEFAULT_SUPER_TABS));
+        }
+      }
+
       loadInsightsData();
     }
   }, [selectedCustomerList.length]);

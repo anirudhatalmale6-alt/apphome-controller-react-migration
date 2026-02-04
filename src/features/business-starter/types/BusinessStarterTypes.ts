@@ -200,6 +200,8 @@ export interface BusinessStarterState {
   isGridView: boolean;
   selectedInsightsTab: number;
   insightsTabs: InsightTab[];
+  // Raw BPaaSWorkflowTabs from sign-in response[2] - index 0 = super company tabs, index 1 = non-super
+  bpaasWorkflowTabs: any[];
 
   // Dashboard data
   customerDashboardData: CustomerDashboardData | null;

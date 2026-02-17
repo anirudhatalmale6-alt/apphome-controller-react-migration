@@ -25,6 +25,7 @@ import { BusinessStarterView } from '../features/business-starter';
 import { BusinessAppsView } from '../features/business-apps';
 import { BusinessHomeView } from '../features/business-home';
 import { BusinessTasksView } from '../features/business-tasks';
+import { PDFLoadingView } from '../features/business-content';
 import { NavigationShellView } from '../features/navigation';
 
 /**
@@ -61,6 +62,11 @@ export function resolveHomepage(roleHomepage: string): string {
     businesshomeviewscontroller: '/BusinessHomeViews',
     businesstaskscontroller: '/BusinessTasks',
     businessappscontroller: '/BusinessApps',
+
+    // Business Content / PDF Loading
+    pdfloadingpage: '/PDFLoadingPage',
+    businesscontent: '/BusinessContent',
+    businesscontentcontroller: '/PDFLoadingPage',
 
     // Workflow action page routes
     dataentryadmin: '/DataEntryAdmin',
@@ -138,6 +144,8 @@ export const AppRouter: React.FC = () => {
       <Route path="/BusinessHomeViews" element={<ProtectedRoute><NavigationShellView><BusinessHomeView /></NavigationShellView></ProtectedRoute>} />
       <Route path="/BusinessTasks" element={<ProtectedRoute><NavigationShellView><BusinessTasksView /></NavigationShellView></ProtectedRoute>} />
       <Route path="/BusinessApps" element={<ProtectedRoute><NavigationShellView><BusinessAppsView /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/PDFLoadingPage" element={<ProtectedRoute><NavigationShellView><PDFLoadingView /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/BusinessContent" element={<ProtectedRoute><NavigationShellView><PDFLoadingView /></NavigationShellView></ProtectedRoute>} />
       {/* Workflow Action Pages (navigated from BusinessApps queue actions) */}
       <Route path="/DataEntryAdmin" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
       <Route path="/DataEntryPage" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />

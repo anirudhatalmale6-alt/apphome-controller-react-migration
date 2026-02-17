@@ -99,7 +99,23 @@ export const API_ENDPOINTS = {
 
   // Content
   CORP_DETAILS: '/baasContent/corp_details',
-  SAVE_IXSD_JSON: '/baasContent/saveIXSDJSON'
+  SAVE_IXSD_JSON: '/baasContent/saveIXSDJSON',
+
+  // Business Content (BusinessContentController)
+  LOAD_TRANSACTION_MEDIA_LIST: '/baasContent/load_transaction_media_list',
+  LOAD_DIN_HISTORY: '/baasContent/load_din_history',
+  START_WORKFLOW: '/baasContent/startWorkflow',
+  LOAD_UPDATE_DATA_JSON: '/baasContent/loadUpdateDataJson',
+  CHECK_FOR_NEW_DIN: '/baasContent/checkForNewDIN',
+  DOWNLOAD_SOURCE_FILE: '/baasContent/download_source_file',
+  GENERATE_EXCEL_OUTPUT: '/baasContent/generateExcelOutput',
+  CHANGE_MEDIA_PAGE: '/baasContent/changeMediaPage',
+  SET_NEW_BOT_CAMP: '/baasContent/setNewBotCamp',
+  SET_INVOICE_CODING: '/baasContent/setInvoiceCoding',
+  SEND_EXCEPTION_NOTIFICATION: '/baasContent/sendExceptionNotification',
+  FIELD_LEVEL_AUDIT: '/baasContent/fieldLevelAudit',
+  LOAD_FORM_AUDIT: '/baasContent/loadFormAudit',
+  INFORDATA: '/baasContent/infordata',
 } as const;
 
 export default apiClient;

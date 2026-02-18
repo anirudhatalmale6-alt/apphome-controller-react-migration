@@ -15,6 +15,7 @@ import { businessAppsApi } from '../features/business-apps/api/businessAppsApi';
 import { businessHomeApi } from '../features/business-home/api/businessHomeApi';
 import { businessTasksApi } from '../features/business-tasks/api/businessTasksApi';
 import { businessContentApi } from '../features/business-content/api/businessContentApi';
+import { appSettingsApi } from '../features/app-settings/api/appSettingsApi';
 import authReducer from '../features/authentication/store/authSlice';
 import navigationReducer from '../features/navigation/store/navigationSlice';
 import userProfileReducer from '../features/user-profile/store/userProfileSlice';
@@ -24,6 +25,7 @@ import businessAppsReducer from '../features/business-apps/store/businessAppsSli
 import businessHomeReducer from '../features/business-home/store/businessHomeSlice';
 import businessTasksReducer from '../features/business-tasks/store/businessTasksSlice';
 import businessContentReducer from '../features/business-content/store/businessContentSlice';
+import appSettingsReducer from '../features/app-settings/store/appSettingsSlice';
 
 /**
  * Middleware: intercept 401 Unauthorized API responses
@@ -59,6 +61,7 @@ export const store = configureStore({
     businessHome: businessHomeReducer,
     businessTasks: businessTasksReducer,
     businessContent: businessContentReducer,
+    appSettings: appSettingsReducer,
 
     // RTK Query APIs
     [authenticationApi.reducerPath]: authenticationApi.reducer,
@@ -70,6 +73,7 @@ export const store = configureStore({
     [businessHomeApi.reducerPath]: businessHomeApi.reducer,
     [businessTasksApi.reducerPath]: businessTasksApi.reducer,
     [businessContentApi.reducerPath]: businessContentApi.reducer,
+    [appSettingsApi.reducerPath]: appSettingsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -87,7 +91,8 @@ export const store = configureStore({
       businessAppsApi.middleware,
       businessHomeApi.middleware,
       businessTasksApi.middleware,
-      businessContentApi.middleware
+      businessContentApi.middleware,
+      appSettingsApi.middleware
     ),
   devTools: import.meta.env.DEV,
 });

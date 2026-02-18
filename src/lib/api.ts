@@ -116,6 +116,21 @@ export const API_ENDPOINTS = {
   FIELD_LEVEL_AUDIT: '/baasContent/fieldLevelAudit',
   LOAD_FORM_AUDIT: '/baasContent/loadFormAudit',
   INFORDATA: '/baasContent/infordata',
+
+  // App Settings (AppSettingController)
+  FETCH_SETTING_DATA: '/baasHome/fetch_setting_data',
+  UPDATE_INFO_SETTING: '/baasHome/update_info_settingConfig',
+  SETTING_DATE_FORMATS: '/baasHome/settingDateFormats',
+  STORE_REMOTE_KEY: '/baasHome/storeRemoteKeySecure',
+  SAVE_CORPORATION_DETAILS: '/baasHome/saveCorporationDetailsConfig',
+  EXISTING_USERS: '/baasContent/existingUsers',
+  LOAD_REVIEW_USERS: '/baasContent/load_retrive_and_review_exceldata_user',
+  VALIDATE_EXCEL: '/baasContent/validate_Excels_for_user',
+  READ_EXCEL: '/baasContent/read_Excels_for_User',
+  USER_FIELD_RESOURCES: '/baasContent/user_fields_resources',
+  USERS_PROCESS: '/baasContent/usersProcess',
+  DELETE_USERS: '/baasContent/deleteExistingUsers',
+  GRANT_ACCESS: '/baasContent/grant_access_user',
 } as const;
 
 export default apiClient;

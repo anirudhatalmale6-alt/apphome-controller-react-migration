@@ -26,6 +26,7 @@ import { BusinessAppsView } from '../features/business-apps';
 import { BusinessHomeView } from '../features/business-home';
 import { BusinessTasksView } from '../features/business-tasks';
 import { PDFLoadingView } from '../features/business-content';
+import { AppSettingView } from '../features/app-settings';
 import { NavigationShellView } from '../features/navigation';
 
 /**
@@ -157,7 +158,7 @@ export const AppRouter: React.FC = () => {
       <Route path="/ActiveTasksDataValidation" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
 
       <Route path="/Admin" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/Setting" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/Setting" element={<ProtectedRoute><NavigationShellView><AppSettingView /></NavigationShellView></ProtectedRoute>} />
       <Route path="/SLADashBoard" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/ServiceAnalytics" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/help" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />

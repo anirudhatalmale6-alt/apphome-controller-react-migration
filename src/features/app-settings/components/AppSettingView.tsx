@@ -102,8 +102,53 @@ export const AppSettingView: React.FC = () => {
             )}
 
             {activeTab === 'DevOps' && (
-              <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>
-                DevOps configuration coming soon
+              <div style={{ padding: 32 }}>
+                {/* Skeleton page - DevOps under development */}
+                <div style={{ maxWidth: 900, margin: '0 auto' }}>
+                  {/* Skeleton header */}
+                  <div style={{ height: 28, width: '35%', background: '#e0e0e0', borderRadius: 4, marginBottom: 24, animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  {/* Skeleton subtitle */}
+                  <div style={{ height: 16, width: '55%', background: '#eeeeee', borderRadius: 4, marginBottom: 32, animation: 'pulse 1.5s ease-in-out infinite' }} />
+
+                  {/* Skeleton card rows */}
+                  {[1, 2, 3].map((row) => (
+                    <div key={row} style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 24, marginBottom: 16, animation: 'pulse 1.5s ease-in-out infinite' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#e0e0e0' }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ height: 16, width: '40%', background: '#e0e0e0', borderRadius: 4, marginBottom: 8 }} />
+                          <div style={{ height: 12, width: '60%', background: '#eeeeee', borderRadius: 4 }} />
+                        </div>
+                      </div>
+                      <div style={{ height: 12, width: '90%', background: '#f5f5f5', borderRadius: 4, marginBottom: 8 }} />
+                      <div style={{ height: 12, width: '75%', background: '#f5f5f5', borderRadius: 4 }} />
+                    </div>
+                  ))}
+
+                  {/* Skeleton table */}
+                  <div style={{ marginTop: 24, background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', gap: 16, padding: '12px 16px', borderBottom: '1px solid #e8e8e8', background: '#fafafa' }}>
+                      {[120, 180, 140, 100].map((w, i) => (
+                        <div key={i} style={{ height: 14, width: w, background: '#e0e0e0', borderRadius: 4 }} />
+                      ))}
+                    </div>
+                    {[1, 2, 3, 4, 5].map((r) => (
+                      <div key={r} style={{ display: 'flex', gap: 16, padding: '14px 16px', borderBottom: '1px solid #f0f0f0', animation: 'pulse 1.5s ease-in-out infinite' }}>
+                        {[120, 180, 140, 100].map((w, i) => (
+                          <div key={i} style={{ height: 12, width: w, background: '#f0f0f0', borderRadius: 4 }} />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pulse animation for skeleton */}
+                <style>{`
+                  @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                  }
+                `}</style>
               </div>
             )}
           </>

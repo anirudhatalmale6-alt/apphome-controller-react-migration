@@ -36,23 +36,29 @@ export interface DataPosition {
 export interface IXSDField {
   key: string;
   key_alias_name: string;
-  value: string;
+  value: any;
   value_of?: string;
   value_from?: string;
   value_condn?: string;
-  input_type: 'text' | 'options' | 'multiSelect' | 'date' | 'checkbox';
+  input_type: 'text' | 'textarea' | 'options' | 'multiSelect' | 'date' | 'checkbox' | 'boolean' | 'booleanButton' | 'currency' | 'decimal';
   read_only: boolean;
+  required?: boolean;
+  key_hint?: string;
   exception_msg: ExceptionMessage[];
   data_position?: DataPosition;
   lookup_criteria: LookupItem[];
   lookup_table?: string;
   lookupType?: string;
+  lookup_search_desc?: string;
   isOptionFieldEdited?: boolean;
   isExtractedDataChanged?: boolean;
+  editedStatus?: boolean;
   visible_status?: boolean;
   valueMaxLength: number;
   valueAsArray?: string[];
   multiSelectFields?: string[];
+  showdownloads?: boolean;
+  complexTypeLabel?: string;
   row?: number;
   page?: number;
   itemState?: 'D' | 'C' | 'A' | 'S' | 'M';
@@ -78,6 +84,23 @@ export interface ExceptionMessage {
 export interface LookupItem {
   lookup_id: string;
   lookup_desc: string;
+  lookup_search_desc?: string;
+}
+
+export interface VersionAuthorInfo {
+  user_name: string;
+  queue_time: string;
+  showdownloads?: boolean;
+  byteString?: string;
+  filename?: string;
+}
+
+export interface DataCaptureProcess {
+  microProcess: string;
+  startDate?: string;
+  endDate?: string;
+  status: string;
+  user_name?: string;
 }
 
 // ─── API Input Types ───
@@ -389,6 +412,12 @@ export interface BusinessContentState {
   workflowActionStarted: boolean;
   fromController: 'apps' | 'tasks' | '';
   selectedProcessLabel: any;
+  workflowConfig: any[];
+  selectedMediaSource: string;
+  totalPages: number;
+  hasExceptions: boolean;
+  showExceptionSidebar: boolean;
+  iXSDMaxVersion: number;
 
   // Transaction history
   transactionDataCaptureProcess: DataCaptureProcess[];
@@ -399,6 +428,10 @@ export interface BusinessContentState {
   fieldAuditData: any[];
   formAuditView: boolean;
   formAuditResponse: any;
+  formAuditDataHeaders: IXSDDataHeader[];
+  formAuditDataHeaders2: IXSDDataHeader[];
+  prevVersionAuthorInfo: VersionAuthorInfo | null;
+  newVersionAuthorInfo: VersionAuthorInfo | null;
 
   // Notification
   filteredExceptionToNotify: any[];

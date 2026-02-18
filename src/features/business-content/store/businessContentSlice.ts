@@ -61,6 +61,12 @@ const initialState: BusinessContentState = {
   workflowActionStarted: false,
   fromController: '',
   selectedProcessLabel: null,
+  workflowConfig: [],
+  selectedMediaSource: '',
+  totalPages: 1,
+  hasExceptions: false,
+  showExceptionSidebar: false,
+  iXSDMaxVersion: 1,
 
   // Transaction history
   transactionDataCaptureProcess: [],
@@ -71,6 +77,10 @@ const initialState: BusinessContentState = {
   fieldAuditData: [],
   formAuditView: false,
   formAuditResponse: null,
+  formAuditDataHeaders: [],
+  formAuditDataHeaders2: [],
+  prevVersionAuthorInfo: null,
+  newVersionAuthorInfo: null,
 
   // Notification
   filteredExceptionToNotify: [],
@@ -215,6 +225,24 @@ const businessContentSlice = createSlice({
     setSelectedProcessLabel: (state, action: PayloadAction<any>) => {
       state.selectedProcessLabel = action.payload;
     },
+    setWorkflowConfig: (state, action: PayloadAction<any[]>) => {
+      state.workflowConfig = action.payload;
+    },
+    setSelectedMediaSource: (state, action: PayloadAction<string>) => {
+      state.selectedMediaSource = action.payload;
+    },
+    setTotalPages: (state, action: PayloadAction<number>) => {
+      state.totalPages = action.payload;
+    },
+    setHasExceptions: (state, action: PayloadAction<boolean>) => {
+      state.hasExceptions = action.payload;
+    },
+    setShowExceptionSidebar: (state, action: PayloadAction<boolean>) => {
+      state.showExceptionSidebar = action.payload;
+    },
+    setIXSDMaxVersion: (state, action: PayloadAction<number>) => {
+      state.iXSDMaxVersion = action.payload;
+    },
 
     // ─── Transaction History ───
     setTransactionDataCaptureProcess: (state, action: PayloadAction<DataCaptureProcess[]>) => {
@@ -236,6 +264,18 @@ const businessContentSlice = createSlice({
     },
     setFormAuditResponse: (state, action: PayloadAction<any>) => {
       state.formAuditResponse = action.payload;
+    },
+    setFormAuditDataHeaders: (state, action: PayloadAction<IXSDDataHeader[]>) => {
+      state.formAuditDataHeaders = action.payload;
+    },
+    setFormAuditDataHeaders2: (state, action: PayloadAction<IXSDDataHeader[]>) => {
+      state.formAuditDataHeaders2 = action.payload;
+    },
+    setPrevVersionAuthorInfo: (state, action: PayloadAction<any>) => {
+      state.prevVersionAuthorInfo = action.payload;
+    },
+    setNewVersionAuthorInfo: (state, action: PayloadAction<any>) => {
+      state.newVersionAuthorInfo = action.payload;
     },
 
     // ─── Notification ───
@@ -324,6 +364,12 @@ export const {
   setWorkflowActionStarted,
   setFromController,
   setSelectedProcessLabel,
+  setWorkflowConfig,
+  setSelectedMediaSource,
+  setTotalPages,
+  setHasExceptions,
+  setShowExceptionSidebar,
+  setIXSDMaxVersion,
   // Transaction history
   setTransactionDataCaptureProcess,
   setDocInfoUin,
@@ -332,6 +378,10 @@ export const {
   setFieldAuditData,
   setFormAuditView,
   setFormAuditResponse,
+  setFormAuditDataHeaders,
+  setFormAuditDataHeaders2,
+  setPrevVersionAuthorInfo,
+  setNewVersionAuthorInfo,
   // Notification
   setFilteredExceptionToNotify,
   // Lookup

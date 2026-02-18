@@ -37,6 +37,12 @@ import {
   setStoredWorkflow,
   setStoredIndex,
 } from '../store/businessAppsSlice';
+import {
+  setSelectedDIN as setContentSelectedDIN,
+  setCurrentStatus as setContentCurrentStatus,
+  setFromController,
+} from '../../business-content/store/businessContentSlice';
+import type { SelectedDIN } from '../../business-content/types/BusinessContentTypes';
 import type {
   MenuTab,
   QueueItem,
@@ -96,35 +102,41 @@ export function useBusinessAppsState() {
   }, [dispatch]);
 
   // Perform action on workflow (origin: $rootScope.performAction)
+  // Also populates business-content slice so PDFLoadingPage can load on mount
   const handlePerformAction = useCallback((workflow: Workflow, index: number) => {
     dispatch(setStoredWorkflow(workflow));
     dispatch(setStoredIndex(index));
+    dispatch(setSelectedDIN(workflow));
+
+    // Map workflow to SelectedDIN for BusinessContentController
+    const din: SelectedDIN = {
+      din: workflow.TransactionID || '',
+      uin: workflow.efs_uin || '',
+      TransactionID: workflow.TransactionID || '',
+      fileName: workflow.file_id || workflow.source_file_id || '',
+      queue_btime: workflow.ActivityDate || '',
+      ixsd_id: '',
+      hasException: workflow.exception_type || '',
+    };
+    dispatch(setContentSelectedDIN(din));
+    dispatch(setContentCurrentStatus(workflow.Actions || ''));
+    dispatch(setFromController('apps'));
 
     switch (workflow.queue_id) {
       case 'qu10003':
-        // Open exception ticket
-        dispatch(setSelectedDIN(workflow));
         navigate('/DataEntryAdmin');
         break;
       case 'qu10004':
       case 'qu10011':
-        // Load data entry page
-        dispatch(setSelectedDIN(workflow));
         navigate('/DataEntryPage');
         break;
       case 'qu10012':
-        // Extract validation data
-        dispatch(setSelectedDIN(workflow));
         navigate('/DataValidation');
         break;
       case 'qu10013':
-        // Open techops ticket
-        dispatch(setSelectedDIN(workflow));
         navigate('/TechOpsTicketPreview');
         break;
       default:
-        // Extract DIN data
-        dispatch(setSelectedDIN(workflow));
         navigate('/BusinessCompliance');
         break;
     }

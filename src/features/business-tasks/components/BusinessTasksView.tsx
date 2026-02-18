@@ -14,7 +14,10 @@
  * Uses RTK Query lazy hooks from businessTasksApi.ts for all API calls
  */
 import { useCallback, useState, useMemo, useEffect } from 'react';
-import { useAppSelector } from '../../../app/hooks';
+import { useNavigate } from 'react-router-dom';
+import { useAppSelector, useAppDispatch } from '../../../app/hooks';
+import { setSelectedDIN, setCurrentStatus, setFromController } from '../../business-content/store/businessContentSlice';
+import type { SelectedDIN } from '../../business-content/types/BusinessContentTypes';
 import {
   useLazyGetYTDAuditDataQuery,
   useGetSearchConfigQuery,
@@ -93,6 +96,8 @@ const PAST_DUE_TIME_BUCKETS: { id: PastDueTimeBucket; label: string; param: stri
 ];
 
 export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className = '' }) => {
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const auth = useAppSelector((state) => state.auth);
   const userData = auth.user;
 
@@ -135,6 +140,24 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     sp_process_id: (userData?.sp_process_id as string) || '',
     queue_id: (userData?.queue_id as string) || ''
   }), [userData]);
+
+  // Handle Open DIN - navigate to BusinessContent/PDFLoadingPage
+  // Origin: AngularJS open icon click → $rootScope.selectedDIN → navigate to PDFLoadingPage
+  const handleOpenDIN = useCallback((item: WorkflowItem) => {
+    const din: SelectedDIN = {
+      din: item.document_id || item.transaction_id || '',
+      uin: '',
+      TransactionID: item.transaction_id || item.document_id || '',
+      fileName: item.file_name || '',
+      queue_btime: item.activity_date || '',
+      ixsd_id: '',
+      hasException: '',
+    };
+    dispatch(setSelectedDIN(din));
+    dispatch(setCurrentStatus(item.status || ''));
+    dispatch(setFromController('tasks'));
+    navigate('/PDFLoadingPage');
+  }, [dispatch, navigate]);
 
   // RTK Query LAZY hooks - triggered explicitly on every tab activation
   const [triggerAging] = useLazyGetYTDAuditDataQuery();
@@ -873,7 +896,7 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                       </button>
-                      <button className="text-gray-400 hover:text-blue-600" title="Open">
+                      <button className="text-gray-400 hover:text-blue-600" title="Open" onClick={() => handleOpenDIN(item)}>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                         </svg>

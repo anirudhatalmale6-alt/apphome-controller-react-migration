@@ -8,6 +8,10 @@
 export { PDFLoadingView } from './components/PDFLoadingView';
 export { DocumentViewer } from './components/DocumentViewer';
 export { IXSDDataGrid } from './components/IXSDDataGrid';
+export { WorkflowContent } from './components/WorkflowContent';
+export { ObjectTypeFields } from './components/ObjectTypeFields';
+export { FilterByException } from './components/FilterByException';
+export { FormAudit } from './components/FormAudit';
 
 // API
 export { businessContentApi } from './api/businessContentApi';

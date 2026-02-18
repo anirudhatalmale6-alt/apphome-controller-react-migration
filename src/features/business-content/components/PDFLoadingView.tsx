@@ -1,11 +1,11 @@
 /**
  * PDF Loading View (Main Business Content Page)
- * Split-panel layout: Document viewer (left) + iXSD Data Grid (right)
- * Origin: PDFLoadingPage.html + BusinessContentController.js
+ * Integrates: WorkflowContent toolbar, split-panel (DocumentViewer + IXSDDataGrid),
+ *             FilterByException sidebar, FormAudit overlay
+ * Origin: PDFLoadingPage.html + WorkflowContent.html + BusinessContentController.js
  */
 import React, { useEffect, useCallback, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
-import { selectAuth } from '../../authentication/store/authSlice';
 import { useBusinessContentState } from '../hooks/useBusinessContentState';
 import {
   selectBusinessContent,
@@ -13,14 +13,17 @@ import {
   setSingleLineItemView,
   setSelectedLineItemIndex,
   setFormAuditView,
+  setShowExceptionSidebar,
 } from '../store/businessContentSlice';
+import { WorkflowContent, type WorkflowAction } from './WorkflowContent';
 import { DocumentViewer } from './DocumentViewer';
 import { IXSDDataGrid } from './IXSDDataGrid';
-import { hasUnsavedChanges } from '../services/BusinessContentService';
+import { FilterByException, type FilteredException } from './FilterByException';
+import { FormAudit } from './FormAudit';
+import { hasUnsavedChanges, getFilteredExceptions, buildMediaUrl } from '../services/BusinessContentService';
 
 export const PDFLoadingView: React.FC = () => {
   const dispatch = useAppDispatch();
-  const authState = useAppSelector(selectAuth);
   const contentState = useAppSelector(selectBusinessContent);
   const {
     handleLoadTransactionMedia,
@@ -38,9 +41,8 @@ export const PDFLoadingView: React.FC = () => {
     handleLoadFormAudit,
     handleSetNewBotCamp,
     handleNavigateBack,
+    handleGetFilteredExceptions,
   } = useBusinessContentState();
-
-  const [showFormAuditModal, setShowFormAuditModal] = useState(false);
 
   // ─── Initialize: Load transaction media on mount ───
   useEffect(() => {
@@ -50,12 +52,38 @@ export const PDFLoadingView: React.FC = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Toggle Edit Mode ───
+  // ─── Toolbar Callbacks ───
+  const handleGoHome = useCallback(() => {
+    if (hasUnsavedChanges(contentState.ixsdDataHeaders)) {
+      if (!window.confirm('You have unsaved changes. Are you sure you want to leave?')) return;
+    }
+    handleNavigateBack(contentState.fromController);
+  }, [contentState.ixsdDataHeaders, contentState.fromController, handleNavigateBack]);
+
+  const handleChangeMedia = useCallback((index: number) => {
+    if (contentState.mediaConfig[index]) {
+      const media = contentState.mediaConfig[index];
+      if (media.byteString) {
+        // Dispatch media change - the hook will handle it
+      }
+    }
+  }, [contentState.mediaConfig]);
+
+  const handlePageChangeDirection = useCallback((direction: 'up' | 'down') => {
+    const newPage = direction === 'up' ? contentState.currentPageNew - 1 : contentState.currentPageNew + 1;
+    const filePath = contentState.mediaConfig.length > 0 ? contentState.mediaConfig[0].file_path : '';
+    handleChangeMediaPage(newPage, filePath);
+  }, [contentState.currentPageNew, contentState.mediaConfig, handleChangeMediaPage]);
+
+  const handlePageInputChange = useCallback((page: number) => {
+    const filePath = contentState.mediaConfig.length > 0 ? contentState.mediaConfig[0].file_path : '';
+    handleChangeMediaPage(page, filePath);
+  }, [contentState.mediaConfig, handleChangeMediaPage]);
+
   const handleToggleEdit = useCallback(() => {
     dispatch(setEnableEditStatus(!contentState.enableEditStatus));
   }, [contentState.enableEditStatus, dispatch]);
 
-  // ─── Save ───
   const handleSave = useCallback(async () => {
     const success = await handleSaveIXSD();
     if (success) {
@@ -63,42 +91,71 @@ export const PDFLoadingView: React.FC = () => {
     }
   }, [handleSaveIXSD, dispatch]);
 
-  // ─── Toggle Single Line Item View ───
-  const handleToggleSingleLineView = useCallback(() => {
-    dispatch(setSingleLineItemView(!contentState.singleLineItemView));
-  }, [contentState.singleLineItemView, dispatch]);
+  const handleFilterExceptions = useCallback(() => {
+    dispatch(setShowExceptionSidebar(!contentState.showExceptionSidebar));
+  }, [contentState.showExceptionSidebar, dispatch]);
 
-  // ─── Select Line Item ───
-  const handleSelectLineItem = useCallback((index: number) => {
-    dispatch(setSelectedLineItemIndex(index));
-  }, [dispatch]);
-
-  // ─── Bot Camp ───
-  const handleBotCamp = useCallback((complexType: string, field: any) => {
-    handleSetNewBotCamp(
-      complexType,
-      field.key,
-      field.value,
-      '' // tfsUin - will be available from contentState
-    );
-  }, [handleSetNewBotCamp]);
-
-  // ─── Form Audit ───
   const handleFormAudit = useCallback(() => {
-    setShowFormAuditModal(true);
     dispatch(setFormAuditView(true));
-  }, [dispatch]);
+    // Trigger initial version comparison
+    const maxVer = contentState.iXSDMaxVersion || 1;
+    handleLoadFormAudit(String(Math.max(1, maxVer - 1)), String(maxVer));
+  }, [dispatch, contentState.iXSDMaxVersion, handleLoadFormAudit]);
 
-  // ─── Back Navigation ───
-  const handleBack = useCallback(() => {
+  const handleProcessDocument = useCallback((action: WorkflowAction) => {
+    handleStartWorkflow(action);
+  }, [handleStartWorkflow]);
+
+  const handleUploadArtifact = useCallback(() => {
+    // Artifact upload - placeholder for file upload dialog
+    console.log('[BusinessContent] Artifact upload triggered');
+  }, []);
+
+  const handleClose = useCallback(() => {
     if (hasUnsavedChanges(contentState.ixsdDataHeaders)) {
-      const confirm = window.confirm('You have unsaved changes. Are you sure you want to leave?');
-      if (!confirm) return;
+      if (!window.confirm('You have unsaved changes. Are you sure you want to leave?')) return;
     }
     handleNavigateBack(contentState.fromController);
   }, [contentState.ixsdDataHeaders, contentState.fromController, handleNavigateBack]);
 
-  // ─── Total pages from media config ───
+  // ─── Line Item ───
+  const handleToggleSingleLineView = useCallback(() => {
+    dispatch(setSingleLineItemView(!contentState.singleLineItemView));
+  }, [contentState.singleLineItemView, dispatch]);
+
+  const handleSelectLineItem = useCallback((index: number) => {
+    dispatch(setSelectedLineItemIndex(index));
+  }, [dispatch]);
+
+  const handleBotCamp = useCallback((complexType: string, field: any) => {
+    handleSetNewBotCamp(complexType, field.key, field.value, '');
+  }, [handleSetNewBotCamp]);
+
+  // ─── Exception Filter ───
+  const handleFilterTabs = useCallback((selected: FilteredException[]) => {
+    // Filter tabs based on selected exceptions
+    console.log('[BusinessContent] Filter tabs:', selected.map((s) => s.exception_desc));
+    dispatch(setShowExceptionSidebar(false));
+  }, [dispatch]);
+
+  const handleRemoveFilter = useCallback(() => {
+    dispatch(setShowExceptionSidebar(false));
+  }, [dispatch]);
+
+  const handleNotifyException = useCallback((exceptionDesc: string) => {
+    console.log('[BusinessContent] Notify exception:', exceptionDesc);
+  }, []);
+
+  // ─── Form Audit ───
+  const handleSearchVersions = useCallback((minVer: number, maxVer: number) => {
+    handleLoadFormAudit(String(minVer), String(maxVer));
+  }, [handleLoadFormAudit]);
+
+  const handleCloseFormAudit = useCallback(() => {
+    dispatch(setFormAuditView(false));
+  }, [dispatch]);
+
+  // ─── Derived Values ───
   const totalPages = contentState.mediaConfig.length > 0
     ? contentState.mediaConfig[0].page_count || 1
     : 1;
@@ -107,71 +164,61 @@ export const PDFLoadingView: React.FC = () => {
     ? contentState.mediaConfig[0].file_path
     : '';
 
+  // Build filtered exception list for the sidebar
+  const filteredExceptionList: FilteredException[] = React.useMemo(() => {
+    const exceptions = handleGetFilteredExceptions();
+    const grouped: Record<string, FilteredException> = {};
+    exceptions.forEach((exc) => {
+      const desc = typeof exc.exception_msg === 'string' ? exc.exception_msg : (exc.exception_msg || 'Unknown');
+      if (!grouped[desc]) {
+        grouped[desc] = {
+          exception_desc: desc,
+          exception_count: 0,
+          isSelected: false,
+          showFieldException: false,
+          field_list: [],
+        };
+      }
+      grouped[desc].exception_count++;
+    });
+    return Object.values(grouped);
+  }, [handleGetFilteredExceptions]);
+
   return (
-    <div className="pdf-loading-page">
-      {/* Header bar */}
-      <div className="content-header">
-        <div className="header-left">
-          <button className="btn btn-sm" onClick={handleBack} title="Back">
-            <i className="fa fa-arrow-left" /> Back
-          </button>
-          <span className="din-info">
-            DIN: <strong>{contentState.selectedDIN?.din || ''}</strong>
-          </span>
-          <span className="status-badge">
-            Status: {contentState.currentStatus}
-          </span>
-        </div>
-        <div className="header-right">
-          {contentState.enableEditStatus ? (
-            <>
-              <button
-                className="btn btn-sm btn-primary"
-                onClick={handleSave}
-                disabled={contentState.isSaving}
-              >
-                <i className="fa fa-save" />
-                {contentState.isSaving ? ' Saving...' : ' Save'}
-              </button>
-              <button className="btn btn-sm" onClick={handleToggleEdit}>
-                <i className="fa fa-times" /> Cancel Edit
-              </button>
-            </>
-          ) : (
-            <button className="btn btn-sm" onClick={handleToggleEdit}>
-              <i className="fa fa-pencil" /> Edit
-            </button>
-          )}
-          <button className="btn btn-sm" onClick={handleFormAudit} title="Form Audit">
-            <i className="fa fa-history" /> Audit
-          </button>
-        </div>
-      </div>
-
-      {/* Loading overlay */}
-      {contentState.isLoading && (
-        <div className="loading-overlay">
-          <div className="loading-spinner">
-            <i className="fa fa-spinner fa-spin fa-3x" />
-            <p>Loading...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Workflow processing overlay */}
-      {contentState.isWorkflowProcessing && (
-        <div className="loading-overlay">
-          <div className="loading-spinner">
-            <i className="fa fa-cog fa-spin fa-3x" />
-            <p>Processing workflow...</p>
-          </div>
-        </div>
-      )}
-
+    <WorkflowContent
+      selectedDinNo={contentState.selectedDIN?.din || ''}
+      selectedUinNo={contentState.selectedDIN?.uin || ''}
+      currentVersion={contentState.currentVersion}
+      selectedMediaSource={contentState.selectedMediaSource || contentState.selectedDIN?.fileName || ''}
+      queueBtime={contentState.selectedDIN?.queue_btime || ''}
+      currentStatus={contentState.currentStatus}
+      mediaConfig={contentState.mediaConfig}
+      currentPage={contentState.currentPageNew}
+      totalPages={totalPages}
+      workflowConfig={contentState.workflowConfig || []}
+      selectedProcessLabel={contentState.selectedProcessLabel}
+      hasExceptions={contentState.hasExceptions || filteredExceptionList.length > 0}
+      enableEditStatus={contentState.enableEditStatus}
+      isLoading={contentState.isLoading}
+      isWorkflowProcessing={contentState.isWorkflowProcessing}
+      onGoHome={handleGoHome}
+      onChangeMedia={handleChangeMedia}
+      onPageChange={handlePageChangeDirection}
+      onPageInputChange={handlePageInputChange}
+      onFilterExceptions={handleFilterExceptions}
+      onFormAudit={handleFormAudit}
+      onProcessDocument={handleProcessDocument}
+      onEnableFieldAudit={handleToggleEdit}
+      onDownloadSource={handleDownloadSourceFile}
+      onGenerateExcel={handleGenerateExcel}
+      onSave={handleSave}
+      onUploadArtifact={handleUploadArtifact}
+      onClose={handleClose}
+    >
       {/* Main split panel */}
-      <div className="content-split-panel">
-        {/* Left panel: Document Viewer */}
-        <div className="panel-left">
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 150px)' }}>
+        {/* Left panel: Document Viewer (50%) */}
+        <div style={{ flex: '0 0 50%', borderRight: '1px solid #ddd', overflow: 'auto' }}>
           <DocumentViewer
             selectedMedia={contentState.selectedMedia}
             currentPage={contentState.currentPageNew}
@@ -185,8 +232,8 @@ export const PDFLoadingView: React.FC = () => {
           />
         </div>
 
-        {/* Right panel: iXSD Data Grid */}
-        <div className="panel-right">
+        {/* Right panel: iXSD Data Grid (50%) */}
+        <div style={{ flex: '0 0 50%', overflow: 'auto' }}>
           <IXSDDataGrid
             headers={contentState.ixsdDataHeaders}
             enableEdit={contentState.enableEditStatus}
@@ -205,14 +252,18 @@ export const PDFLoadingView: React.FC = () => {
 
       {/* Transaction History Bar */}
       {contentState.transactionDataCaptureProcess.length > 0 && (
-        <div className="transaction-history-bar">
+        <div style={{
+          display: 'flex', gap: '8px', padding: '8px 16px',
+          backgroundColor: '#f5f5f5', borderTop: '1px solid #ddd', flexWrap: 'wrap',
+        }}>
           <strong>Transaction History:</strong>
           {contentState.transactionDataCaptureProcess.map((process, idx) => (
-            <span key={idx} className={`history-step ${process.status}`}>
+            <span key={idx} style={{
+              padding: '2px 8px', borderRadius: '4px', fontSize: '12px',
+              backgroundColor: process.status === 'completed' ? '#c8e6c9' : '#fff9c4',
+            }}>
               {process.microProcess}
-              {process.startDate && (
-                <small> ({process.startDate})</small>
-              )}
+              {process.startDate && <small> ({process.startDate})</small>}
             </span>
           ))}
         </div>
@@ -220,11 +271,37 @@ export const PDFLoadingView: React.FC = () => {
 
       {/* Error display */}
       {contentState.error && (
-        <div className="error-banner">
+        <div style={{
+          padding: '8px 16px', backgroundColor: '#ffebee', color: '#c62828',
+          borderTop: '1px solid #ef9a9a',
+        }}>
           <i className="fa fa-exclamation-circle" /> {contentState.error}
         </div>
       )}
-    </div>
+
+      {/* Exception Sidebar */}
+      <FilterByException
+        filteredException={filteredExceptionList}
+        isOpen={contentState.showExceptionSidebar}
+        onClose={() => dispatch(setShowExceptionSidebar(false))}
+        onFilterTabs={handleFilterTabs}
+        onRemoveFilter={handleRemoveFilter}
+        onNotifyException={handleNotifyException}
+      />
+
+      {/* Form Audit Overlay */}
+      <FormAudit
+        isOpen={contentState.formAuditView}
+        isLoading={false}
+        maxVersion={contentState.iXSDMaxVersion}
+        version1Headers={contentState.formAuditDataHeaders}
+        version1AuthorInfo={contentState.prevVersionAuthorInfo}
+        version2Headers={contentState.formAuditDataHeaders2}
+        version2AuthorInfo={contentState.newVersionAuthorInfo}
+        onSearchVersions={handleSearchVersions}
+        onClose={handleCloseFormAudit}
+      />
+    </WorkflowContent>
   );
 };
 

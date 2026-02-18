@@ -21,6 +21,12 @@ export interface MediaConfig {
   file_path: string;
   page_count?: number;
   file_type?: string;
+  extracted_file_name?: string;
+  efs_uin?: string;
+  tfs_uin?: string;
+  spProcessId?: string;
+  pdfWidth?: number;
+  pdfHeight?: number;
 }
 
 export interface DataPosition {

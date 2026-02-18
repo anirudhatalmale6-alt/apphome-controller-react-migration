@@ -50,6 +50,10 @@ import {
   setAttachmentList,
   setServiceDashboard,
   setBotCampList,
+  setWorkflowConfig,
+  setSelectedMediaSource,
+  setTotalPages,
+  setIXSDMaxVersion,
   setError,
   resetBusinessContentState,
 } from '../store/businessContentSlice';
@@ -115,7 +119,11 @@ export function useBusinessContentState() {
   const user = authState.user;
 
   // ─── Load Transaction Media ───
-  // Origin: $rootScope.loadTransactionMediaList
+  // Origin: $rootScope.loadTransactionMediaList (line ~7269)
+  // Response array has 13 elements: [0]=iXSDDataJson, [1]=bundleDesignData,
+  // [2]=workflowConfig, [3]=orgHierarchy, [4-5]=lookupCatalogs, [6]=botCampList,
+  // [7]=serviceProviders, [8]=classifyEos, [9]=serviceDashboard, [10]=queueUserCatalog,
+  // [11]=queueCatalog, [12]=mediaConfig
   const handleLoadTransactionMedia = useCallback(async (din: SelectedDIN) => {
     if (!user) return;
 
@@ -139,38 +147,55 @@ export function useBusinessContentState() {
       }).unwrap();
 
       if (result && Array.isArray(result)) {
-        // Response structure: [transactionData, bundleDesign, workflowConfig, orgHierarchy, lookupCatalog, ...]
-        const transactionData = result[0] || [];
-        const bundleDesign = result[1] || [];
+        // ── response[0]: iXSDDataJson ──
+        const iXSDDataJson = result[0] || [];
+        dispatch(setIXSDDataJson(iXSDDataJson));
 
-        // Extract media config from transaction data
-        if (Array.isArray(transactionData) && transactionData.length > 0) {
-          const firstRecord = transactionData[0];
+        if (Array.isArray(iXSDDataJson) && iXSDDataJson.length > 0) {
+          const firstRecord = iXSDDataJson[0];
 
-          // Set UIN and connector ID
-          if (firstRecord.uin) {
-            dispatch(setSelectedDIN({ ...din, uin: firstRecord.uin }));
-          }
+          // Update DIN with server values
+          const updatedDin: SelectedDIN = {
+            ...din,
+            din: firstRecord.din || din.din,
+            uin: firstRecord.uin || din.uin,
+            fileName: firstRecord.file_name || din.fileName,
+            queue_btime: firstRecord.queue_btime || din.queue_btime,
+          };
+          dispatch(setSelectedDIN(updatedDin));
+
+          // Set connector ID
           if (firstRecord.bPaaS_connectorID) {
             dispatch(setBPaaSConnectorId(firstRecord.bPaaS_connectorID));
           }
+
+          // Set artifact upload path
+          if (firstRecord.artifact_upload_path) {
+            dispatch(setArtifactUploadPath(firstRecord.artifact_upload_path));
+          }
+
+          // Set version
+          const version = firstRecord.change_history_version || '1';
+          dispatch(setCurrentVersion(version));
+          dispatch(setIXSDMaxVersion(parseInt(version, 10) || 1));
+
+          // Parse field formats
           if (firstRecord.field_formats_for_999) {
             try {
-              const formats = JSON.parse(firstRecord.field_formats_for_999);
-              dispatch(setFieldFormatsFor999(formats));
-            } catch {
-              // Not valid JSON, skip
-            }
+              dispatch(setFieldFormatsFor999(JSON.parse(firstRecord.field_formats_for_999)));
+            } catch { /* skip */ }
           }
-        }
 
-        // Parse iXSD data
-        if (Array.isArray(bundleDesign) && bundleDesign.length > 0) {
-          const ixsdRecord = bundleDesign[0];
-          if (ixsdRecord?.ixsd_data_json) {
+          // Parse iXSD data JSON and exception JSON
+          const ixsdDataJsonStr = contentState.currentStatus === 'review_org' && iXSDDataJson[1]
+            ? iXSDDataJson[1].ixsd_data_json
+            : firstRecord.ixsd_data_json;
+          const ixsdExceptionStr = firstRecord.ixsd_data_exception || '{}';
+
+          if (ixsdDataJsonStr) {
             const { headers, dataJson, exceptionJson } = parseIXSDData(
-              ixsdRecord.ixsd_data_json,
-              ixsdRecord.ixsd_data_exception || '{}'
+              ixsdDataJsonStr,
+              ixsdExceptionStr
             );
             dispatch(setIxsdDataHeaders(headers));
             dispatch(setSelectedDataJson(dataJson));
@@ -179,36 +204,87 @@ export function useBusinessContentState() {
           }
         }
 
-        // Media config (images/pages)
-        if (result[2] && Array.isArray(result[2])) {
-          const media: MediaConfigType[] = result[2].map((item: any) => ({
-            byteString: item.byteString || '',
-            file_path: item.file_path || '',
-            page_count: item.page_count,
-            file_type: item.file_type,
-          }));
-          dispatch(setMediaConfig(media));
-          if (media.length > 0 && media[0].byteString) {
-            dispatch(setSelectedMedia(buildMediaUrl(media[0].byteString, media[0].file_type)));
+        // ── response[2]: workflowConfig ──
+        if (result[2] && Array.isArray(result[2]) && result[2].length > 0) {
+          const wfConfig: any[] = [];
+          if (result[2][0]?.process_desc !== undefined) {
+            result[2].forEach((ele: any) => {
+              wfConfig.push({
+                ...ele,
+                isEnabled: true,
+                tooltip: ele.process_desc,
+                process_name: ele.process_name || ele.process_desc,
+              });
+            });
           }
+          dispatch(setWorkflowConfig(wfConfig));
         }
 
-        // Lookup catalog
-        if (result[4]) {
-          dispatch(setLookupCatalog(result[4]));
-        }
+        // ── response[4-7]: Lookup catalogs ──
+        const lookupCatalog: any = {};
+        if (result[4]) lookupCatalog['dm_org_department'] = result[4];
+        if (result[5]) lookupCatalog['dm_glcode'] = result[5];
+        if (result[7]) lookupCatalog['dm_service_providers'] = result[7];
+        dispatch(setLookupCatalog(lookupCatalog));
 
-        // Service dashboard
-        if (result[5]) {
-          dispatch(setServiceDashboard(result[5]));
-        }
-
-        // Bot camp list
+        // ── response[6]: Bot camp list ──
         if (result[6]) {
           dispatch(setBotCampList(Array.isArray(result[6]) ? result[6] : []));
         }
 
-        dispatch(setIXSDDataJson(result));
+        // ── response[9]: Service dashboard ──
+        if (result[9] && Array.isArray(result[9]) && result[9][0]?.service_dashboard) {
+          try {
+            dispatch(setServiceDashboard(JSON.parse(result[9][0].service_dashboard)));
+          } catch { /* skip */ }
+        }
+
+        // ── response[12]: mediaConfig ──
+        if (result[12] && Array.isArray(result[12]) && result[12].length > 0) {
+          const mediaConfigArr: MediaConfigType[] = result[12].map((item: any) => ({
+            byteString: item.byteString || '',
+            file_path: item.file_path || '',
+            page_count: item.totalPages || item.page_count || 1,
+            file_type: item.file_type || item.media || '',
+            extracted_file_name: item.extracted_file_name || '',
+            efs_uin: item.efs_uin || '',
+            tfs_uin: item.tfs_uin || '',
+            spProcessId: item.spProcessId || '',
+            pdfWidth: item.pdfWidth,
+            pdfHeight: item.pdfHeight,
+          }));
+          dispatch(setMediaConfig(mediaConfigArr));
+
+          // Set spProcessId from mediaConfig[0]
+          if (mediaConfigArr[0].spProcessId) {
+            dispatch(setSpProcessId(mediaConfigArr[0].spProcessId));
+          }
+
+          // Set media source name and total pages
+          dispatch(setSelectedMediaSource(mediaConfigArr[0].extracted_file_name || ''));
+          dispatch(setTotalPages(mediaConfigArr[0].page_count || 1));
+
+          // Fetch the first page image via changeMediaPage API
+          try {
+            const pageResult = await changeMediaPage({
+              customer_id: user.customer_id || '',
+              bps_id: user.bps_id || '',
+              bu_id: user.bu_id || '',
+              tps_id: user.tps_id || '',
+              din: iXSDDataJson[0]?.din || din.TransactionID,
+              spProcess_id: mediaConfigArr[0].spProcessId || '',
+              ixsd_id: din.ixsd_id,
+              page_number: 0, // 0-indexed for API (first page)
+              file_path: mediaConfigArr[0].file_path,
+            }).unwrap();
+
+            if (pageResult?.byteString) {
+              dispatch(setSelectedMedia('data:image/jpeg;base64,' + pageResult.byteString));
+            }
+          } catch (pageErr) {
+            console.error('[BusinessContent] changeMediaPage error:', pageErr);
+          }
+        }
       }
     } catch (err: any) {
       console.error('[BusinessContent] loadTransactionMedia error:', err);
@@ -216,7 +292,7 @@ export function useBusinessContentState() {
     } finally {
       dispatch(setLoading(false));
     }
-  }, [user, contentState.currentStatus, dispatch, triggerLoadMedia]);
+  }, [user, contentState.currentStatus, dispatch, triggerLoadMedia, changeMediaPage]);
 
   // ─── Load DIN History ───
   // Origin: $rootScope.load_din_history

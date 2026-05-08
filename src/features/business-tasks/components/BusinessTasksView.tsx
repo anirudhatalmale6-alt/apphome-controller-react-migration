@@ -141,8 +141,8 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     queue_id: (userData?.queue_id as string) || ''
   }), [userData]);
 
-  // Handle Open DIN - navigate to BusinessContent/PDFLoadingPage
-  // Origin: AngularJS open icon click → $rootScope.selectedDIN → navigate to PDFLoadingPage
+  // Handle Open DIN - navigate based on exception_type
+  // Origin: AngularJS open icon click → route by exception type per DinOpenPages.docx
   const handleOpenDIN = useCallback((item: WorkflowItem) => {
     const din: SelectedDIN = {
       din: item.document_id || item.transaction_id || '',
@@ -156,7 +156,19 @@ export const BusinessTasksView: React.FC<BusinessTasksViewProps> = ({ className 
     dispatch(setSelectedDIN(din));
     dispatch(setCurrentStatus(item.status || ''));
     dispatch(setFromController('tasks'));
-    navigate('/PDFLoadingPage');
+
+    const exType = (item.exception_type || '').toLowerCase();
+    if (exType === 'ticket_for_dataentry') {
+      navigate('/DataEntryPage');
+    } else if (exType === 'design_exception' || exType === 'extraction_exception') {
+      navigate('/BusinessException');
+    } else if (exType === 'validation') {
+      navigate('/DataValidation');
+    } else if (exType === 'ticket_for_devops') {
+      navigate('/TechOpsTicketPreview');
+    } else {
+      navigate('/PDFLoadingPage');
+    }
   }, [dispatch, navigate]);
 
   // RTK Query LAZY hooks - triggered explicitly on every tab activation

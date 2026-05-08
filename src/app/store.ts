@@ -16,6 +16,9 @@ import { businessHomeApi } from '../features/business-home/api/businessHomeApi';
 import { businessTasksApi } from '../features/business-tasks/api/businessTasksApi';
 import { businessContentApi } from '../features/business-content/api/businessContentApi';
 import { appSettingsApi } from '../features/app-settings/api/appSettingsApi';
+import { dataEntryOperatorApi } from '../features/data-entry-operator/api/dataEntryOperatorApi';
+import { businessExceptionApi } from '../features/business-exception/api/businessExceptionApi';
+import { validationContentApi } from '../features/validation-content/api/validationContentApi';
 import authReducer from '../features/authentication/store/authSlice';
 import navigationReducer from '../features/navigation/store/navigationSlice';
 import userProfileReducer from '../features/user-profile/store/userProfileSlice';
@@ -26,6 +29,9 @@ import businessHomeReducer from '../features/business-home/store/businessHomeSli
 import businessTasksReducer from '../features/business-tasks/store/businessTasksSlice';
 import businessContentReducer from '../features/business-content/store/businessContentSlice';
 import appSettingsReducer from '../features/app-settings/store/appSettingsSlice';
+import dataEntryOperatorReducer from '../features/data-entry-operator/store/dataEntryOperatorSlice';
+import businessExceptionReducer from '../features/business-exception/store/businessExceptionSlice';
+import validationContentReducer from '../features/validation-content/store/validationContentSlice';
 
 /**
  * Middleware: intercept 401 Unauthorized API responses
@@ -62,6 +68,9 @@ export const store = configureStore({
     businessTasks: businessTasksReducer,
     businessContent: businessContentReducer,
     appSettings: appSettingsReducer,
+    dataEntryOperator: dataEntryOperatorReducer,
+    businessException: businessExceptionReducer,
+    validationContent: validationContentReducer,
 
     // RTK Query APIs
     [authenticationApi.reducerPath]: authenticationApi.reducer,
@@ -74,6 +83,9 @@ export const store = configureStore({
     [businessTasksApi.reducerPath]: businessTasksApi.reducer,
     [businessContentApi.reducerPath]: businessContentApi.reducer,
     [appSettingsApi.reducerPath]: appSettingsApi.reducer,
+    [dataEntryOperatorApi.reducerPath]: dataEntryOperatorApi.reducer,
+    [businessExceptionApi.reducerPath]: businessExceptionApi.reducer,
+    [validationContentApi.reducerPath]: validationContentApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -92,7 +104,10 @@ export const store = configureStore({
       businessHomeApi.middleware,
       businessTasksApi.middleware,
       businessContentApi.middleware,
-      appSettingsApi.middleware
+      appSettingsApi.middleware,
+      dataEntryOperatorApi.middleware,
+      businessExceptionApi.middleware,
+      validationContentApi.middleware
     ),
   devTools: import.meta.env.DEV,
 });

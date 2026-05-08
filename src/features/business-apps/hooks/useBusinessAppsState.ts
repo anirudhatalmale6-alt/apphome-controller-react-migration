@@ -136,9 +136,21 @@ export function useBusinessAppsState() {
       case 'qu10013':
         navigate('/TechOpsTicketPreview');
         break;
-      default:
-        navigate('/BusinessCompliance');
+      default: {
+        const exType = (workflow.exception_type || '').toLowerCase();
+        if (exType === 'ticket_for_dataentry') {
+          navigate('/DataEntryPage');
+        } else if (exType === 'design_exception' || exType === 'extraction_exception') {
+          navigate('/BusinessException');
+        } else if (exType === 'validation') {
+          navigate('/DataValidation');
+        } else if (exType === 'ticket_for_devops') {
+          navigate('/TechOpsTicketPreview');
+        } else {
+          navigate('/PDFLoadingPage');
+        }
         break;
+      }
     }
   }, [dispatch, navigate]);
 

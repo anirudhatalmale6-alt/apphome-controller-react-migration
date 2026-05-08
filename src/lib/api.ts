@@ -131,6 +131,23 @@ export const API_ENDPOINTS = {
   USERS_PROCESS: '/baasContent/usersProcess',
   DELETE_USERS: '/baasContent/deleteExistingUsers',
   GRANT_ACCESS: '/baasContent/grant_access_user',
+
+  // Data Entry Operator (DataEntryOperatorController)
+  LOAD_DATA_ENTRY_MEDIA_LIST: '/validationContent/load_data_entry_media_list',
+  CHANGE_MEDIA_PAGE_DATA_ENTRY: '/validationInbox/changeMediaPageDataEntry',
+  ROTATE_PDF_PAGE: '/validationInbox/rotatePDFPage',
+  HANDLE_DATA_ENTRY_EXCEPTION: '/baasContent/handleDataEntryException',
+  DOWNLOAD_STREAM_EXCEPTION: '/validationHome/download_Stream_exception',
+
+  // Business Exception (BusinessExceptionController)
+  EXTRACT_DATA_FROM_POSITION: '/validationHome/extractDataFromPosition',
+  LOAD_BUNDLE_DESIGN_AND_IXSD: '/validationContent/load_bundle_design_and_iXSD',
+
+  // Validation Content (ValidationContentController)
+  LOAD_VALIDATION_MEDIA_INFO: '/validationContent/load_validation_media_info',
+  LOAD_UPDATE_DATA_JSON_VALIDATION: '/validationInbox/loadUpdateDataJson',
+  START_WORKFLOW_VALIDATION: '/baasContent/startWorkflow',
+  SAVE_IXSD_JSON_VALIDATION: '/validationContent/saveIXSDJSON',
 } as const;
 
 export default apiClient;

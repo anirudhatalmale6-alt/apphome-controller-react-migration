@@ -27,6 +27,9 @@ import { BusinessHomeView } from '../features/business-home';
 import { BusinessTasksView } from '../features/business-tasks';
 import { PDFLoadingView } from '../features/business-content';
 import { AppSettingView } from '../features/app-settings';
+import { DataEntryOperatorView } from '../features/data-entry-operator';
+import { BusinessExceptionView } from '../features/business-exception';
+import { ValidationContentView } from '../features/validation-content';
 import { NavigationShellView } from '../features/navigation';
 
 /**
@@ -73,6 +76,7 @@ export function resolveHomepage(roleHomepage: string): string {
     dataentryadmin: '/DataEntryAdmin',
     dataentrypage: '/DataEntryPage',
     datavalidation: '/DataValidation',
+    businessexception: '/BusinessException',
     techopsticketpreview: '/TechOpsTicketPreview',
     businesscompliance: '/BusinessCompliance',
     activetasksdataentryadminpage: '/ActiveTasksDataEntryAdminPage',
@@ -148,14 +152,15 @@ export const AppRouter: React.FC = () => {
       <Route path="/PDFLoadingPage" element={<ProtectedRoute><NavigationShellView><PDFLoadingView /></NavigationShellView></ProtectedRoute>} />
       <Route path="/BusinessContent" element={<ProtectedRoute><NavigationShellView><PDFLoadingView /></NavigationShellView></ProtectedRoute>} />
       {/* Workflow Action Pages (navigated from BusinessApps queue actions) */}
-      <Route path="/DataEntryAdmin" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
-      <Route path="/DataEntryPage" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
-      <Route path="/DataValidation" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/DataEntryAdmin" element={<ProtectedRoute><NavigationShellView><DataEntryOperatorView /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/DataEntryPage" element={<ProtectedRoute><NavigationShellView><DataEntryOperatorView /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/DataValidation" element={<ProtectedRoute><NavigationShellView><ValidationContentView /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/BusinessException" element={<ProtectedRoute><NavigationShellView><BusinessExceptionView /></NavigationShellView></ProtectedRoute>} />
       <Route path="/TechOpsTicketPreview" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
       <Route path="/BusinessCompliance" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
-      <Route path="/ActiveTasksDataEntryAdminPage" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
-      <Route path="/ActiveTasksDataEntryPage" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
-      <Route path="/ActiveTasksDataValidation" element={<ProtectedRoute><NavigationShellView><HomePage /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/ActiveTasksDataEntryAdminPage" element={<ProtectedRoute><NavigationShellView><DataEntryOperatorView /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/ActiveTasksDataEntryPage" element={<ProtectedRoute><NavigationShellView><DataEntryOperatorView /></NavigationShellView></ProtectedRoute>} />
+      <Route path="/ActiveTasksDataValidation" element={<ProtectedRoute><NavigationShellView><ValidationContentView /></NavigationShellView></ProtectedRoute>} />
 
       <Route path="/Admin" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/Setting" element={<ProtectedRoute><NavigationShellView><AppSettingView /></NavigationShellView></ProtectedRoute>} />

@@ -10,7 +10,6 @@ import type {
   ExceptionTicket,
   CropCoordinates,
   PageWiseExtraction,
-  PageExtractionState,
   TableExtractionInputs,
   ColumnHeader,
   IXSDDataHeader,

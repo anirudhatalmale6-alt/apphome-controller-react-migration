@@ -13,7 +13,6 @@ import {
   setWorkflowProcessing,
   setSaving,
   setSelectedDIN,
-  setCurrentStatus,
   setCurrentVersion,
   setCurrentDinSubIndex,
   setMediaConfig,
@@ -26,18 +25,13 @@ import {
   setSelectedMediaSource,
   setSelectedMediaSourcePath,
   setPdfDimensions,
-  setIxsdDataHeaders,
-  setIxsdDataHeadersBackup,
   setSelectedDataJson,
   setSelectedExceptionJson,
   setIXSDDataJson,
   setFieldFormatsFor999,
   setBundleDesign,
   setPrepMxsd,
-  setEnableEditStatus,
-  setEnableUserInformation,
   setSaveProcessIsCompleted,
-  setIsAnyLineItemDeleted,
   setIsExtractedDataChanged,
   setSelectedDataHeader,
   setCurrentHeaderIndex,
@@ -48,14 +42,10 @@ import {
   setWorkflowActionStarted,
   setFromController,
   setWorkflowConfig,
-  setHasExceptions,
-  setShowExceptionSidebar,
   setFilteredException,
   setExceptionDetails,
   setServiceDashboard,
   setQueueCatalog,
-  setJCropToolIsActive,
-  setCoordinatesPositions,
   setError,
   resetValidationContentState,
 } from '../store/validationContentSlice';
@@ -316,7 +306,7 @@ export function useValidationContentState() {
   // Origin: $scope.continueProcess (line ~913)
   const handleStartWorkflow = useCallback(async (
     workflowParams: any,
-    queueComments: string
+    _queueComments: string
   ) => {
     if (!user || !contentState.selectedDIN) return null;
 
@@ -508,7 +498,7 @@ export function useValidationContentState() {
 
   // ─── Toggle Line Item View ───
   // Origin: $scope.changeLineItemView (line ~431)
-  const handleChangeLineItemView = useCallback((lineItem: any[], index: number) => {
+  const handleChangeLineItemView = useCallback((lineItem: any[], _index: number) => {
     if (!lineItem || lineItem.length === 0) return;
 
     const currentRow = lineItem[0].row;

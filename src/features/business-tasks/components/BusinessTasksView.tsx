@@ -78,6 +78,7 @@ interface WorkflowItem {
   queue?: string;
   action?: string;
   days_overdue?: number;
+  exception_type?: string;
 }
 
 interface SearchConfigItem {

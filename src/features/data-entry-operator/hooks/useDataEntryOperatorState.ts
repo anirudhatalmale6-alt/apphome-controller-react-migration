@@ -40,11 +40,7 @@ import {
   setInventoryData,
   setGenericMxsd,
   setCurrentMedia,
-  setIxsdId,
-  setTfsUin,
   setSourceFile,
-  setSelectedDataJson,
-  setCurrentVersion,
   setServiceDashboard,
   setQueueCatalog,
   setDocValidationResult,
@@ -67,7 +63,6 @@ import type {
   OriginalDocPage,
   WorkflowActionConfig,
   WorkflowRoutingJson,
-  NextMicroProcess,
   ClassificationInfo,
 } from '../types/DataEntryOperatorTypes';
 

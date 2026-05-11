@@ -10,18 +10,16 @@
  * - Discard column option
  * - Column separation list management
  */
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import {
   selectBusinessException,
   updateColumnHeaders,
-  setSelectedTableColumn,
 } from '../store/businessExceptionSlice';
 import type {
   ComplexTypeField,
   ColumnHeader,
   BusinessFieldConfig,
-  ColumnSeparation,
   TwinHeaderSeparator,
 } from '../types/BusinessExceptionTypes';
 
@@ -201,7 +199,7 @@ export const BusinessFieldSelectionDialog: React.FC<BusinessFieldSelectionDialog
   const [selectedSeparator, setSelectedSeparator] = useState('');
   const [isNewSeparator, setIsNewSeparator] = useState(true);
   const [selectedSeparatorIndex, setSelectedSeparatorIndex] = useState(-1);
-  const [customSeparatorInput, setCustomSeparatorInput] = useState(false);
+  const [, /* customSeparatorInput */ ] = useState(false);
   const [columnLabel, setColumnLabel] = useState(selectedTableColumn);
 
   // ─── Build field list with discard option ───

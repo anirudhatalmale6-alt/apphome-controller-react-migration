@@ -13,7 +13,7 @@ import {
   setShowActionDialog,
 } from '../store/dataEntryOperatorSlice';
 import { WorkflowActionDialog } from './WorkflowActionDialog';
-import type { WorkflowActionConfig, WorkflowRoutingJson } from '../types/DataEntryOperatorTypes';
+import type { WorkflowRoutingJson } from '../types/DataEntryOperatorTypes';
 
 export const DataEntryOperatorView: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -35,7 +35,6 @@ export const DataEntryOperatorView: React.FC = () => {
     handleOpenInvoice,
     handleProcessDocument,
     handleContinueProcess,
-    handleDeclineAllPages,
     handleDownloadStream,
     handleGoToInbox,
   } = useDataEntryOperatorState();

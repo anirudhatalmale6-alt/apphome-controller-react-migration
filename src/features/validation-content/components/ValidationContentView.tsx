@@ -8,12 +8,8 @@ import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import { useValidationContentState } from '../hooks/useValidationContentState';
 import {
   selectValidationContent,
-  setEnableEditStatus,
   setSingleLineItemView,
-  setSelectedLineItemIndex,
   setShowExceptionSidebar,
-  setNewPageNumber,
-  setCurrentPageNew,
 } from '../store/validationContentSlice';
 import { WorkflowValidationInbox } from './WorkflowValidationInbox';
 import { ValidationWorkflowDialog } from './ValidationWorkflowDialog';
@@ -201,19 +197,15 @@ export const ValidationContentView: React.FC = () => {
   const contentState = useAppSelector(selectValidationContent);
   const {
     handleLoadValidationMedia,
-    handleChangeMediaPage,
     handleChangePageNumber,
     handleGoToPage,
     handleChangeSelectedMedia,
-    handleExtractData,
     handleStartWorkflow,
     handleSaveIXSD,
     handleSetDataHeader,
     handleChangeLineItemView,
     handleFilterByException,
-    checkExceptionFields,
     checkIsAnyFieldEdited,
-    handleGoToInbox,
     handleNavigateBack,
     user,
   } = useValidationContentState();

@@ -159,7 +159,7 @@ export const businessExceptionApi = createApi({
           return response;
         }
       },
-      providesTags: ['BundleDesign'],
+      invalidatesTags: ['BundleDesign'],
     }),
 
     /**

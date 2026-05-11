@@ -12,8 +12,6 @@ import { useBusinessExceptionState } from '../hooks/useBusinessExceptionState';
 import {
   selectBusinessException,
   setJCropToolIsActive,
-  setJCropLineItemIsActive,
-  setCoordinatesPositions,
   setCurrentPageNew,
   setSelectedIndex,
   setSelectedField,
@@ -198,8 +196,6 @@ export const BusinessExceptionView: React.FC = () => {
   const dispatch = useAppDispatch();
   const state = useAppSelector(selectBusinessException);
   const {
-    exceptionState,
-    handleLoadDataEntryMediaList,
     handleChangeMediaPage,
     handleExtractData,
     handleExtractTable,
@@ -231,8 +227,6 @@ export const BusinessExceptionView: React.FC = () => {
   // ─── Image Load Handler ───
   const handleImageLoad = useCallback(() => {
     if (imgRef.current && canvasRef.current) {
-      const width = imgRef.current.naturalWidth;
-      const height = imgRef.current.naturalHeight;
       canvasRef.current.width = imgRef.current.clientWidth;
       canvasRef.current.height = imgRef.current.clientHeight;
       dispatch(setImgDimensions({ width: imgRef.current.clientWidth, height: imgRef.current.clientHeight }));
@@ -400,7 +394,7 @@ export const BusinessExceptionView: React.FC = () => {
               value={field.value || ''}
               readOnly={!field.edit}
               placeholder={field.key_hint || ''}
-              onChange={(e) => {
+              onChange={(_e) => {
                 // Update field value in headers
                 // This will be handled through dispatch
               }}

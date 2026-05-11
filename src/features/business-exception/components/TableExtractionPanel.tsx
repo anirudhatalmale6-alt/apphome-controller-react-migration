@@ -12,7 +12,7 @@
  * - Column edit mode for relabeling
  */
 import React, { useCallback, useState } from 'react';
-import type { PageWiseExtraction, ColumnHeader } from '../types/BusinessExceptionTypes';
+import type { PageWiseExtraction } from '../types/BusinessExceptionTypes';
 
 interface TableExtractionPanelProps {
   currentPage: number;

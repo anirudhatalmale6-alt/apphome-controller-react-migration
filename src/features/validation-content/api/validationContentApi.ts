@@ -14,7 +14,6 @@ import type {
   ChangeMediaPageResponse,
   ExtractDataFromPositionInput,
   ExtractDataResponse,
-  StartWorkflowInput,
   WorkflowResponse,
   SaveIXSDInput,
   SaveIXSDResponse,
@@ -175,7 +174,7 @@ export const validationContentApi = createApi({
           return response;
         }
       },
-      providesTags: ['BundleDesign'],
+      invalidatesTags: ['BundleDesign'],
     }),
 
     /**

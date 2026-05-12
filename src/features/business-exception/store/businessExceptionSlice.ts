@@ -4,6 +4,7 @@
  * Origin: BusinessExceptionController.js $scope and $rootScope variables
  */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { RootState } from '../../../app/store';
 import type {
   BusinessExceptionState,
   ExceptionTicket,
@@ -555,16 +556,16 @@ export const {
 
 // ─── Selectors ───
 // Use inline state type to avoid circular import with app/store.ts
-export const selectBusinessException = (state: { businessException: BusinessExceptionState }) => state.businessException;
-export const selectSelectException = (state: { businessException: BusinessExceptionState }) => state.businessException.selectException;
-export const selectDownloadStream = (state: { businessException: BusinessExceptionState }) => state.businessException.downloadStream;
-export const selectIxsdDataHeaders = (state: { businessException: BusinessExceptionState }) => state.businessException.ixsdDataHeaders;
-export const selectSelectedIXSDDataObject = (state: { businessException: BusinessExceptionState }) => state.businessException.selectedIXSDDataObject;
-export const selectPageWiseExtraction = (state: { businessException: BusinessExceptionState }) => state.businessException.pageWiseExtraction;
-export const selectCurrentPage = (state: { businessException: BusinessExceptionState }) => state.businessException.currentPage;
-export const selectIsLoading = (state: { businessException: BusinessExceptionState }) => state.businessException.isLoading;
-export const selectWorkflowActionStarted = (state: { businessException: BusinessExceptionState }) => state.businessException.workflowActionStarted;
-export const selectJCropLineItemIsActive = (state: { businessException: BusinessExceptionState }) => state.businessException.jCropLineItemIsActive;
-export const selectShowDataEntryForm = (state: { businessException: BusinessExceptionState }) => state.businessException.showDataEntryForm;
+export const selectBusinessException = (state: RootState) => state.businessException;
+export const selectSelectException = (state: RootState) => state.businessException.selectException;
+export const selectDownloadStream = (state: RootState) => state.businessException.downloadStream;
+export const selectIxsdDataHeaders = (state: RootState) => state.businessException.ixsdDataHeaders;
+export const selectSelectedIXSDDataObject = (state: RootState) => state.businessException.selectedIXSDDataObject;
+export const selectPageWiseExtraction = (state: RootState) => state.businessException.pageWiseExtraction;
+export const selectCurrentPage = (state: RootState) => state.businessException.currentPage;
+export const selectIsLoading = (state: RootState) => state.businessException.isLoading;
+export const selectWorkflowActionStarted = (state: RootState) => state.businessException.workflowActionStarted;
+export const selectJCropLineItemIsActive = (state: RootState) => state.businessException.jCropLineItemIsActive;
+export const selectShowDataEntryForm = (state: RootState) => state.businessException.showDataEntryForm;
 
 export default businessExceptionSlice.reducer;

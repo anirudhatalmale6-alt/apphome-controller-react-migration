@@ -4,6 +4,7 @@
  * Origin: DataEntryOperatorController.js $scope and $rootScope variables
  */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { RootState } from '../../../app/store';
 import type {
   DataEntryOperatorState,
   SelectedException,
@@ -354,14 +355,13 @@ export const {
 } = dataEntryOperatorSlice.actions;
 
 // ─── Selectors ───
-type SliceState = { dataEntryOperator: DataEntryOperatorState };
-export const selectDataEntryOperator = (state: SliceState) => state.dataEntryOperator;
-export const selectSelectedException = (state: SliceState) => state.dataEntryOperator.selectedException;
-export const selectPageOrderList = (state: SliceState) => state.dataEntryOperator.pageOrderList;
-export const selectClassificationInfo = (state: SliceState) => state.dataEntryOperator.classificationInfo;
-export const selectPdfStream = (state: SliceState) => state.dataEntryOperator.pdfStream;
-export const selectWorkflowActionConfigData = (state: SliceState) => state.dataEntryOperator.workflowActionConfigData;
-export const selectIsLoading = (state: SliceState) => state.dataEntryOperator.isLoading;
-export const selectWorkflowActionStarted = (state: SliceState) => state.dataEntryOperator.workflowActionStarted;
+export const selectDataEntryOperator = (state: RootState) => state.dataEntryOperator;
+export const selectSelectedException = (state: RootState) => state.dataEntryOperator.selectedException;
+export const selectPageOrderList = (state: RootState) => state.dataEntryOperator.pageOrderList;
+export const selectClassificationInfo = (state: RootState) => state.dataEntryOperator.classificationInfo;
+export const selectPdfStream = (state: RootState) => state.dataEntryOperator.pdfStream;
+export const selectWorkflowActionConfigData = (state: RootState) => state.dataEntryOperator.workflowActionConfigData;
+export const selectIsLoading = (state: RootState) => state.dataEntryOperator.isLoading;
+export const selectWorkflowActionStarted = (state: RootState) => state.dataEntryOperator.workflowActionStarted;
 
 export default dataEntryOperatorSlice.reducer;

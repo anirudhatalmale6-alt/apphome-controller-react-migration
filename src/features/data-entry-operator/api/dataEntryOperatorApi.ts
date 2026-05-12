@@ -48,7 +48,7 @@ export const dataEntryOperatorApi = createApi({
      * Returns: [inventoryData[], iXSDConfigData[], mediaConfigData[], workflowActionConfigData[],
      *           classificationInfo[], ?, maxFileIdData[], queueInfo[], ?, queueCatalog[]]
      */
-    loadDataEntryMediaList: builder.query<any, LoadDataEntryMediaInput>({
+    loadDataEntryMediaList: builder.query<unknown[], LoadDataEntryMediaInput>({
       query: (input) => ({
         url: DATA_ENTRY_ENDPOINTS.LOAD_DATA_ENTRY_MEDIA_LIST,
         method: 'POST',
@@ -57,9 +57,9 @@ export const dataEntryOperatorApi = createApi({
       }),
       transformResponse: (response: string) => {
         try {
-          return decryptData<any>(response);
+          return decryptData<unknown[]>(response);
         } catch {
-          return response;
+          return response as unknown as unknown[];
         }
       },
       providesTags: ['DataEntryMedia'],
@@ -80,7 +80,7 @@ export const dataEntryOperatorApi = createApi({
       }),
       transformResponse: (response: string) => {
         try {
-          const decrypted = decryptData<any>(response);
+          const decrypted = decryptData<ChangeMediaPageResponse[][] | ChangeMediaPageResponse>(response);
           // API returns nested array: [[{byteString}]]
           const data = Array.isArray(decrypted) && Array.isArray(decrypted[0])
             ? decrypted[0][0]
@@ -107,7 +107,7 @@ export const dataEntryOperatorApi = createApi({
       }),
       transformResponse: (response: string) => {
         try {
-          const decrypted = decryptData<any>(response);
+          const decrypted = decryptData<ChangeMediaPageResponse[][] | ChangeMediaPageResponse>(response);
           const data = Array.isArray(decrypted) && Array.isArray(decrypted[0])
             ? decrypted[0][0]
             : decrypted;

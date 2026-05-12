@@ -48,7 +48,7 @@ export interface PageOrderItem {
   droppedPageStream: string;
   routeTo: 'classification' | 'deleted';
   isOpened: boolean;
-  validationResult: any[];
+  validationResult: DocValidationResult[];
   validationReport?: string;
   onlyClassification?: boolean;
 }
@@ -84,8 +84,11 @@ export interface WorkflowActionConfig {
   workflow_routing_json: string;
   exception_channel?: string;
   isEnabled: boolean;
-  tooltips?: any;
+  tooltips?: Record<string, string>;
 }
+
+/** Raw workflow action config from API (before isEnabled/tooltips are computed) */
+export type RawWorkflowActionConfig = Omit<WorkflowActionConfig, 'isEnabled' | 'tooltips'>;
 
 // ─── Inventory / Media Data ───
 
@@ -184,15 +187,15 @@ export interface HandleDataEntryExceptionInput {
   source_file: string;
   dept_id: string;
   queue_id: string;
-  dataJSON: any;
-  dataExceptionJson: any;
+  dataJSON: Record<string, unknown> | null;
+  dataExceptionJson: Record<string, unknown>;
   queue_comment: string;
   exceptionTicketStatus: string;
   exceptionType: string;
   schemaBeanPath: string;
   rabbitMq: string;
   next_micro_process_code: string;
-  next_micro_process_id: any;
+  next_micro_process_id: string | NextMicroProcess | null;
   next_queue: string;
   next_channel: string;
   din: string;
@@ -221,7 +224,7 @@ export interface HandleDataEntryExceptionInput {
   exception_ticket: string;
   mimeType: string;
   listIndex: number;
-  preparedXSDStatus: any[];
+  preparedXSDStatus: unknown[];
   preparedMXSDList: PrepMxsdListObject[];
   dinType: boolean;
   formMedia: string;
@@ -235,11 +238,11 @@ export interface HandleDataEntryExceptionInput {
   pageOrderList: PageOrderItem[];
   classificationResult: ClassificationInfo[];
   isValidation: boolean;
-  serviceDashboard: any;
+  serviceDashboard: Record<string, unknown> | null;
 }
 
 export interface PrepMxsdListObject {
-  prepMxsd: any;
+  prepMxsd: Record<string, unknown> | null;
   efsUin: string;
   prepMxsdStatus: string;
   sheetName: string;
@@ -263,14 +266,14 @@ export interface DownloadStreamResponse {
 }
 
 export interface HandleDataEntryExceptionResponse {
-  exceptionMsg?: any;
-  [key: string]: any;
+  exceptionMsg?: Record<string, unknown> | string;
+  [key: string]: unknown;
 }
 
 // ─── Doc Validation Result ───
 
 export interface DocValidationResult {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // ─── State Type ───
@@ -315,25 +318,25 @@ export interface DataEntryOperatorState {
   selectedAction: WorkflowActionConfig | null;
   selectedActionClick: string;
   selectedRabbitMq: string;
-  nextMicroProcessObj: any;
+  nextMicroProcessObj: string | NextMicroProcess | null;
 
   // Inventory / media config
   inventoryData: InventoryData[];
-  genericMxsd: any;
+  genericMxsd: Record<string, unknown> | null;
   currentMedia: string;
   ixsdId: string;
   ixsd_bean_path: string;
   tfs_uin: string;
   source_file: string;
-  selectedDataJson: any;
+  selectedDataJson: Record<string, unknown> | null;
   currentVersion: string;
-  serviceDashboard: any;
+  serviceDashboard: Record<string, unknown> | null;
 
   // Queue
   queueCatalog: QueueCatalogEntry[];
 
   // Validation result dialog
-  docValidationResult: any;
+  docValidationResult: DocValidationResult | string | null;
   showValidationResultDialog: boolean;
 
   // Action dialog

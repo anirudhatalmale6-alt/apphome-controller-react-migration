@@ -169,8 +169,8 @@ export function useBusinessExceptionState() {
 
         // response[3]: workflowActionConfigData
         const workflowActions = result[3] || [];
-        const configuredActions = workflowActions.map((ele: any) => {
-          const routingJson = JSON.parse(ele.workflow_routing_json || '[]');
+        const configuredActions = workflowActions.map((ele: Record<string, any>) => {
+          const routingJson = JSON.parse(ele.workflow_routing_json || '[]') as Array<{ enabledAlways?: boolean }>;
           return {
             ...ele,
             isEnabled: routingJson[0]?.enabledAlways ? true : false,
@@ -252,7 +252,7 @@ export function useBusinessExceptionState() {
 
   // ─── Set Bundle Info (Load iXSD design) ───
   // Origin: $scope.setBundleInfo (line ~1953)
-  const handleSetBundleInfo = useCallback(async (tfs: any) => {
+  const handleSetBundleInfo = useCallback(async (tfs: { efs_uin: string; tfs_uin: string }) => {
     if (!user) return;
 
     dispatch(setNormalDataEntryFormView(true));
@@ -408,11 +408,11 @@ export function useBusinessExceptionState() {
         else {
           dispatch(setConfigProcessStep(2));
           const columnHeaders = pageExtraction?.tableExtractionInputs?.columnHeaders || [];
-          const editModeIndex = columnHeaders.findIndex((col) => col.isEditMode);
+          const editModeIndex = columnHeaders.findIndex((col: ColumnHeader) => col.isEditMode);
 
           if (editModeIndex > -1) {
             // Update existing column label
-            const updatedHeaders = columnHeaders.map((col, idx) => ({
+            const updatedHeaders = columnHeaders.map((col: ColumnHeader, idx: number) => ({
               ...col,
               label: idx === editModeIndex ? extractedText : col.label,
               isEditMode: false,
@@ -684,7 +684,7 @@ export function useBusinessExceptionState() {
   // ─── Create Generic Line Item ───
   // Origin: $scope.createGenericLineItem (line ~1769)
   const createGenericLineItem = useCallback((lineItem: IXSDField[], lastRowNo: number): IXSDField[] => {
-    return lineItem.map((header) => ({
+    return lineItem.map((header: IXSDField) => ({
       ...header,
       value: '',
       isExtractedDataChanged: false,
@@ -701,7 +701,7 @@ export function useBusinessExceptionState() {
     if (!exceptionState.selectedIXSDDataObject) return;
 
     const headers = [...exceptionState.ixsdDataHeaders];
-    const headerIdx = headers.findIndex((h) => h.label === exceptionState.selectedIXSDDataObject?.label);
+    const headerIdx = headers.findIndex((h: IXSDDataHeader) => h.label === exceptionState.selectedIXSDDataObject?.label);
     if (headerIdx === -1) return;
 
     const lineItems = headers[headerIdx].ixsd_fields as IXSDField[][];
@@ -719,7 +719,7 @@ export function useBusinessExceptionState() {
     if (!exceptionState.selectedIXSDDataObject) return;
 
     const headers = [...exceptionState.ixsdDataHeaders];
-    const headerIdx = headers.findIndex((h) => h.label === exceptionState.selectedIXSDDataObject?.label);
+    const headerIdx = headers.findIndex((h: IXSDDataHeader) => h.label === exceptionState.selectedIXSDDataObject?.label);
     if (headerIdx === -1) return;
 
     const lineItems = [...(headers[headerIdx].ixsd_fields as IXSDField[][])];
@@ -736,7 +736,7 @@ export function useBusinessExceptionState() {
     const pageExtraction = exceptionState.pageWiseExtraction[currentPage];
     if (!pageExtraction) return;
 
-    const updatedHeaders = pageExtraction.tableExtractionInputs.columnHeaders.map((col, idx) => ({
+    const updatedHeaders = pageExtraction.tableExtractionInputs.columnHeaders.map((col: ColumnHeader, idx: number) => ({
       ...col,
       isEditMode: idx === colIndex,
     }));
@@ -760,7 +760,7 @@ export function useBusinessExceptionState() {
 
     const pageExtraction = exceptionState.pageWiseExtraction[currentPage];
     if (pageExtraction) {
-      const updatedHeaders = pageExtraction.tableExtractionInputs.columnHeaders.map((col) => ({
+      const updatedHeaders = pageExtraction.tableExtractionInputs.columnHeaders.map((col: ColumnHeader) => ({
         ...col,
         isEditMode: false,
       }));
@@ -770,7 +770,7 @@ export function useBusinessExceptionState() {
   }, [exceptionState.currentPage, exceptionState.pageWiseExtraction, dispatch]);
 
   // ─── Download Stream ───
-  const handleDownloadStream = useCallback(async (item: any) => {
+  const handleDownloadStream = useCallback(async (item: { selectedMedia?: string; selectedMediaName?: string }) => {
     if (!item.selectedMedia) return;
 
     try {
@@ -806,11 +806,11 @@ export function useBusinessExceptionState() {
     const pageExtraction = exceptionState.pageWiseExtraction[currentPage];
     if (!pageExtraction) return;
 
-    const hasSkipColumn = pageExtraction.tableExtractionInputs.columnHeaders.some((col) => col.isSkipIndex);
+    const hasSkipColumn = pageExtraction.tableExtractionInputs.columnHeaders.some((col: ColumnHeader) => col.isSkipIndex);
     if (hasSkipColumn) {
       dispatch(setIsSkipIndexTextActive({ page: currentPage, value: true }));
       dispatch(setCanTableAreaCrop({ page: currentPage, value: false }));
-      const updatedHeaders = pageExtraction.tableExtractionInputs.columnHeaders.map((col) => ({
+      const updatedHeaders = pageExtraction.tableExtractionInputs.columnHeaders.map((col: ColumnHeader) => ({
         ...col,
         isEditMode: false,
       }));

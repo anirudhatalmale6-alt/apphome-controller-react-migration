@@ -62,8 +62,14 @@ import type {
   PageOrderItem,
   OriginalDocPage,
   WorkflowActionConfig,
+  RawWorkflowActionConfig,
   WorkflowRoutingJson,
   ClassificationInfo,
+  InventoryData,
+  MediaConfigData,
+  MaxFileIdData,
+  QueueInfo,
+  QueueCatalogEntry,
 } from '../types/DataEntryOperatorTypes';
 
 export function useDataEntryOperatorState() {
@@ -114,7 +120,7 @@ export function useDataEntryOperatorState() {
 
       if (result && Array.isArray(result)) {
         // [0] inventoryData
-        const inventoryData = result[0] || [];
+        const inventoryData = (result[0] || []) as InventoryData[];
         dispatch(setInventoryData(inventoryData));
 
         if (inventoryData.length > 0) {
@@ -141,18 +147,18 @@ export function useDataEntryOperatorState() {
 
         // [2] mediaConfigData
         if (result[2] && Array.isArray(result[2]) && result[2].length > 0) {
-          const mediaConfig = result[2][0];
-          dispatch(setGenericMxsd(JSON.parse(mediaConfig.eFS_XSD)));
+          const mediaConfig = result[2][0] as MediaConfigData;
+          dispatch(setGenericMxsd(JSON.parse(mediaConfig.eFS_XSD) as Record<string, unknown>));
           dispatch(setCurrentMedia(mediaConfig.efs_uin));
         }
 
         // [3] workflowActionConfigData
         if (result[3] && Array.isArray(result[3])) {
-          const actionConfig: WorkflowActionConfig[] = result[3].map((ele: any) => {
+          const actionConfig: WorkflowActionConfig[] = (result[3] as RawWorkflowActionConfig[]).map((ele: RawWorkflowActionConfig) => {
             const routingJson: WorkflowRoutingJson[] = JSON.parse(ele.workflow_routing_json);
-            let tooltips: any = undefined;
+            let tooltips: Record<string, string> | undefined = undefined;
             try {
-              tooltips = JSON.parse(ele.process_desc);
+              tooltips = JSON.parse(ele.process_desc || '');
             } catch { /* not JSON */ }
             return {
               ...ele,
@@ -164,41 +170,42 @@ export function useDataEntryOperatorState() {
         }
 
         // [4] classificationInfo
-        if (result[4] && Array.isArray(result[4])) {
-          dispatch(setClassificationInfo(result[4]));
+        const classInfoArr = (result[4] && Array.isArray(result[4]) ? result[4] : []) as ClassificationInfo[];
+        if (classInfoArr.length > 0) {
+          dispatch(setClassificationInfo(classInfoArr));
           // Set initial page status
-          if (result[4].length > 0) {
-            const firstPage = result[4][0];
-            dispatch(setCurrentPageStatus(
-              firstPage.classification_status === 1 ? 'classified' : 'failed'
-            ));
-            dispatch(setCurrentPageStatusMsg(
-              firstPage.classification_status === 1 ? 'Classified' : 'Failed to classify'
-            ));
-          }
+          const firstPage = classInfoArr[0];
+          dispatch(setCurrentPageStatus(
+            firstPage.classification_status === 1 ? 'classified' : 'failed'
+          ));
+          dispatch(setCurrentPageStatusMsg(
+            firstPage.classification_status === 1 ? 'Classified' : 'Failed to classify'
+          ));
         }
 
         // [6] maxFileId
         if (result[6] && Array.isArray(result[6]) && result[6].length > 0) {
-          dispatch(setMaxFileId(result[6][0].max_file_id));
-          dispatch(setMaxFileIdBackUp(result[6][0].max_file_id));
+          const maxFileIdData = result[6][0] as MaxFileIdData;
+          dispatch(setMaxFileId(maxFileIdData.max_file_id));
+          dispatch(setMaxFileIdBackUp(maxFileIdData.max_file_id));
         }
 
         // [7] queueInfo (fileDate and serviceDashboard)
         if (result[7] && Array.isArray(result[7]) && result[7].length > 0) {
+          const queueInfo = result[7][0] as QueueInfo;
           const updatedException2: SelectedException = {
             ...(deState.selectedException || exception),
             filename: inventoryData[0]?.source_file || exception.filename,
             filePath: inventoryData[0]?.extracted_file_name || exception.filePath,
-            fileDate: result[7][0].queue_btime,
+            fileDate: queueInfo.queue_btime,
           };
           dispatch(setSelectedException(updatedException2));
-          dispatch(setServiceDashboard(JSON.parse(result[7][0].service_dashboard)));
+          dispatch(setServiceDashboard(JSON.parse(queueInfo.service_dashboard) as Record<string, unknown>));
         }
 
         // [9] queueCatalog
         if (result[9] && Array.isArray(result[9])) {
-          dispatch(setQueueCatalog(result[9]));
+          dispatch(setQueueCatalog(result[9] as QueueCatalogEntry[]));
         }
 
         // Reset page state
@@ -210,11 +217,11 @@ export function useDataEntryOperatorState() {
         dispatch(setSelectedPageArray([]));
 
         // Set classified documents as tabs
-        setClassifiedDocumentsAsTabsInternal(result[4] || [], inventoryData, exception);
+        setClassifiedDocumentsAsTabsInternal(classInfoArr, inventoryData, exception);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[DataEntryOperator] loadExceptionMedia error:', err);
-      dispatch(setError(err?.message || 'Failed to load media'));
+      dispatch(setError(err instanceof Error ? err.message : 'Failed to load media'));
     } finally {
       dispatch(setLoading(false));
     }
@@ -224,7 +231,7 @@ export function useDataEntryOperatorState() {
   // Origin: $scope.setClassifiedDocumentsAsTabs (line ~1128)
   const setClassifiedDocumentsAsTabsInternal = useCallback((
     classificationInfoArr: ClassificationInfo[],
-    inventoryData: any[],
+    inventoryData: InventoryData[],
     exception: SelectedException
   ) => {
     const newPageOrderList: PageOrderItem[] = [];
@@ -310,7 +317,7 @@ export function useDataEntryOperatorState() {
 
   // ─── Set Initial Page Drop (single page doc) ───
   // Origin: $scope.setInitialPageDrop (line ~1208)
-  const handleSetInitialPageDrop = useCallback((inventoryData: any[], exception: SelectedException) => {
+  const handleSetInitialPageDrop = useCallback((inventoryData: InventoryData[], exception: SelectedException) => {
     const pdfStream = 'data:image/jpeg;base64,' + (inventoryData[0]?.byteString || '');
     const fileId = parseInt(inventoryData[0]?.file_id || '0');
 
@@ -374,7 +381,7 @@ export function useDataEntryOperatorState() {
           ));
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[DataEntryOperator] changeMediaPage error:', err);
     } finally {
       dispatch(setWorkflowActionStarted(false));
@@ -405,7 +412,7 @@ export function useDataEntryOperatorState() {
       if (result?.byteString) {
         dispatch(setPdfStream('data:image/jpeg;base64,' + result.byteString));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[DataEntryOperator] rotatePDFPage error:', err);
     } finally {
       dispatch(setWorkflowActionStarted(false));
@@ -722,8 +729,8 @@ export function useDataEntryOperatorState() {
         rabbitMq: deState.selectedRabbitMq,
         next_micro_process_code: deState.selectedActionClick,
         next_micro_process_id: deState.nextMicroProcessObj,
-        next_queue: deState.nextMicroProcessObj?.next_queue || '',
-        next_channel: deState.nextMicroProcessObj?.next_channel || '',
+        next_queue: typeof deState.nextMicroProcessObj === 'object' && deState.nextMicroProcessObj !== null ? deState.nextMicroProcessObj.next_queue : '',
+        next_channel: typeof deState.nextMicroProcessObj === 'object' && deState.nextMicroProcessObj !== null ? deState.nextMicroProcessObj.next_channel : '',
         din: '0',
         din_sub_index: '',
         extractFileId: 0,
@@ -775,7 +782,7 @@ export function useDataEntryOperatorState() {
           handleGoToInbox();
         } else {
           // Show validation result
-          dispatch(setDocValidationResult(result.exceptionMsg));
+          dispatch(setDocValidationResult(result.exceptionMsg ?? null));
           dispatch(setShowValidationResultDialog(true));
           dispatch(setWorkflowActionStarted(false));
         }
@@ -783,10 +790,10 @@ export function useDataEntryOperatorState() {
         dispatch(setWorkflowActionStarted(false));
         dispatch(setError('Unable to process now..'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[DataEntryOperator] handleDataEntryException error:', err);
       dispatch(setWorkflowActionStarted(false));
-      dispatch(setError(err?.message || 'Unable to process'));
+      dispatch(setError(err instanceof Error ? err.message : 'Unable to process'));
     }
   }, [user, deState, dispatch, handleDataEntryException]);
 
@@ -867,9 +874,9 @@ export function useDataEntryOperatorState() {
         link.click();
         window.URL.revokeObjectURL(link.href);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[DataEntryOperator] downloadStream error:', err);
-      dispatch(setError(err?.message || 'Download failed'));
+      dispatch(setError(err instanceof Error ? err.message : 'Download failed'));
     } finally {
       dispatch(setDownloading(false));
     }

@@ -20,6 +20,7 @@ import type {
   ComplexTypeField,
   ColumnHeader,
   BusinessFieldConfig,
+  ColumnSeparation,
   TwinHeaderSeparator,
 } from '../types/BusinessExceptionTypes';
 

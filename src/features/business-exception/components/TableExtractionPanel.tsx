@@ -12,7 +12,7 @@
  * - Column edit mode for relabeling
  */
 import React, { useCallback, useState } from 'react';
-import type { PageWiseExtraction } from '../types/BusinessExceptionTypes';
+import type { PageWiseExtraction, ColumnHeader } from '../types/BusinessExceptionTypes';
 
 interface TableExtractionPanelProps {
   currentPage: number;
@@ -311,7 +311,7 @@ export const TableExtractionPanel: React.FC<TableExtractionPanelProps> = ({
               Double-click on column headers in the document to extract them
             </div>
           ) : (
-            columnHeaders.map((col, idx) => (
+            columnHeaders.map((col: ColumnHeader, idx: number) => (
               <div
                 key={idx}
                 style={col.isEditMode ? styles.columnItemActive : styles.columnItem}
@@ -381,7 +381,7 @@ export const TableExtractionPanel: React.FC<TableExtractionPanelProps> = ({
       {skipIndexTextList.length > 0 && (
         <div style={{ marginTop: '6px', fontSize: '11px' }}>
           <strong>Skip Instructions:</strong>
-          {skipIndexTextList.map((text, idx) => (
+          {skipIndexTextList.map((text: string, idx: number) => (
             <div key={idx} style={styles.skipItem}>
               <span>{idx + 1}. "{text}"</span>
             </div>

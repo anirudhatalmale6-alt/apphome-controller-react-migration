@@ -13,7 +13,7 @@ import {
 } from '../store/validationContentSlice';
 import { WorkflowValidationInbox } from './WorkflowValidationInbox';
 import { ValidationWorkflowDialog } from './ValidationWorkflowDialog';
-import type { IXSDDataHeader, WorkflowConfigItem } from '../types/ValidationContentTypes';
+import type { IXSDDataHeader, IXSDField, ExceptionMessage, WorkflowConfigItem, MediaConfig } from '../types/ValidationContentTypes';
 
 // ─── Inline Styles (dark toolbar theme) ───
 const styles = {
@@ -262,7 +262,7 @@ export const ValidationContentView: React.FC = () => {
 
     const routingJson = JSON.parse(selectedProcess.workflow_routing_json);
     const nextMicroConfig = routingJson[0]?.next_micro_list?.find(
-      (ele: any) => ele.exception_type === contentState.selectedDIN?.exception_type
+      (ele: { exception_type?: string; next_micro_code: string; next_micro: string }) => ele.exception_type === contentState.selectedDIN?.exception_type
     );
 
     if (!nextMicroConfig) return;
@@ -333,17 +333,19 @@ export const ValidationContentView: React.FC = () => {
 
   // ─── Data Tab Rendering ───
   const visibleHeaders = useMemo(() => {
-    return contentState.ixsdDataHeaders.filter((header) => header.showTabContent !== false);
+    return contentState.ixsdDataHeaders.filter((header: IXSDDataHeader) => header.showTabContent !== false);
   }, [contentState.ixsdDataHeaders]);
 
   const selectedHeader = contentState.selectedDataHeader || visibleHeaders[0] || null;
 
   // ─── Render Field Rows (Object View) ───
   const renderObjectFields = useCallback((header: IXSDDataHeader) => {
-    const fields = header.ixsd_fields as any[];
-    return fields
-      .filter((field: any) => field.page === contentState.currentPageNew && field.view_status !== false)
-      .map((field: any, idx: number) => (
+    const fields = header.ixsd_fields as IXSDField[][];
+    // For object-style headers, ixsd_fields is treated as flat array of fields
+    const flatFields = fields.flat();
+    return flatFields
+      .filter((field: IXSDField) => field.page === contentState.currentPageNew && field.view_status !== false)
+      .map((field: IXSDField, idx: number) => (
         <div key={field.key || idx} style={styles.fieldRow}>
           <span style={styles.fieldLabel}>{field.key_alias_name || field.key}</span>
           <input
@@ -354,7 +356,7 @@ export const ValidationContentView: React.FC = () => {
             type="text"
             value={field.value || ''}
             readOnly={!contentState.enableEditStatus}
-            title={field.exception_msg?.length > 0 ? field.exception_msg.map((m: any) => typeof m === 'string' ? m : m.exception_msg).join(', ') : ''}
+            title={field.exception_msg?.length > 0 ? field.exception_msg.map((m: ExceptionMessage) => m.exception_msg).join(', ') : ''}
           />
           {field.exception_msg?.length > 0 && (
             <span style={{ color: 'red', marginLeft: '4px', fontSize: '11px' }}>
@@ -367,9 +369,9 @@ export const ValidationContentView: React.FC = () => {
 
   // ─── Render Line Items (Array View) ───
   const renderArrayFields = useCallback((header: IXSDDataHeader) => {
-    const rows = header.ixsd_fields as any[][];
-    const filteredRows = rows.filter((row: any[]) =>
-      row.some((field: any) => field.page === contentState.currentPageNew)
+    const rows: IXSDField[][] = header.ixsd_fields;
+    const filteredRows = rows.filter((row: IXSDField[]) =>
+      row.some((field: IXSDField) => field.page === contentState.currentPageNew)
     );
 
     if (filteredRows.length === 0) {
@@ -377,7 +379,7 @@ export const ValidationContentView: React.FC = () => {
     }
 
     // Get column headers from first row
-    const headerFields = filteredRows[0] || [];
+    const headerFields: IXSDField[] = filteredRows[0] || [];
 
     return (
       <div style={{ overflowX: 'auto' }}>
@@ -386,8 +388,8 @@ export const ValidationContentView: React.FC = () => {
             <tr style={{ backgroundColor: '#eceff1' }}>
               <th style={{ padding: '6px 8px', borderBottom: '2px solid #cfd8dc', textAlign: 'left' }}>#</th>
               {headerFields
-                .filter((f: any) => f.view_status !== false)
-                .map((field: any) => (
+                .filter((f: IXSDField) => f.view_status !== false)
+                .map((field: IXSDField) => (
                   <th key={field.key} style={{ padding: '6px 8px', borderBottom: '2px solid #cfd8dc', textAlign: 'left', whiteSpace: 'nowrap' }}>
                     {field.key_alias_name || field.key}
                   </th>
@@ -395,7 +397,7 @@ export const ValidationContentView: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((row: any[], rowIdx: number) => (
+            {filteredRows.map((row: IXSDField[], rowIdx: number) => (
               <tr
                 key={rowIdx}
                 style={{ cursor: 'pointer', backgroundColor: rowIdx % 2 === 0 ? '#fff' : '#fafafa' }}
@@ -403,8 +405,8 @@ export const ValidationContentView: React.FC = () => {
               >
                 <td style={{ padding: '4px 8px', borderBottom: '1px solid #f0f0f0' }}>{row[0]?.row || rowIdx + 1}</td>
                 {row
-                  .filter((f: any) => f.view_status !== false)
-                  .map((field: any, colIdx: number) => (
+                  .filter((f: IXSDField) => f.view_status !== false)
+                  .map((field: IXSDField, colIdx: number) => (
                     <td
                       key={`${rowIdx}-${colIdx}`}
                       style={{
@@ -487,7 +489,7 @@ export const ValidationContentView: React.FC = () => {
 
           {/* Workflow Actions */}
           <div style={styles.workflowActions}>
-            {contentState.workflowConfig.map((action, idx) => (
+            {contentState.workflowConfig.map((action: WorkflowConfigItem, idx: number) => (
               <button
                 key={idx}
                 style={action.isEnabled ? styles.toolbarBtn : styles.toolbarBtnDisabled}
@@ -533,7 +535,7 @@ export const ValidationContentView: React.FC = () => {
           {/* Media source selector (if multiple media) */}
           {contentState.mediaConfig.length > 1 && (
             <div style={{ padding: '8px', borderTop: '1px solid #cfd8dc', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-              {contentState.mediaConfig.map((media, idx) => (
+              {contentState.mediaConfig.map((media: MediaConfig, idx: number) => (
                 <button
                   key={idx}
                   style={idx === contentState.currentMediaIndex ? styles.toolbarBtnActive : styles.toolbarBtn}
@@ -551,7 +553,7 @@ export const ValidationContentView: React.FC = () => {
           {/* Tab Headers */}
           {visibleHeaders.length > 0 && (
             <div style={styles.tabContainer}>
-              {visibleHeaders.map((header, idx) => (
+              {visibleHeaders.map((header: IXSDDataHeader, idx: number) => (
                 <div
                   key={header.label + idx}
                   style={selectedHeader?.label === header.label ? styles.tabActive : styles.tab}
@@ -595,7 +597,7 @@ export const ValidationContentView: React.FC = () => {
                   Close Detail
                 </button>
               </div>
-              {(contentState.selectedLineItemObj as any[]).map((field: any, idx: number) => (
+              {(contentState.selectedLineItemObj as IXSDField[]).map((field: IXSDField, idx: number) => (
                 <div key={field.key || idx} style={styles.fieldRow}>
                   <span style={styles.fieldLabel}>{field.key_alias_name || field.key}</span>
                   <input

@@ -62,10 +62,22 @@ import type {
   SelectedDIN,
   MediaConfig as MediaConfigType,
   IXSDDataHeader,
+  IXSDField,
+  ExceptionMessage,
   WorkflowConfigItem,
   FilteredException,
   CoordinatesPosition,
 } from '../types/ValidationContentTypes';
+
+/** Internal type for grouping exception items during filtering */
+interface ExceptionGroupItem {
+  id: number;
+  rowNo: number;
+  complexType: string;
+  complexTypeLabel: string;
+  key: string;
+  exception: string;
+}
 
 export function useValidationContentState() {
   const dispatch = useAppDispatch();
@@ -164,17 +176,17 @@ export function useValidationContentState() {
 
         // ── response[2]: workflowConfig ──
         if (result[2] && Array.isArray(result[2]) && result[2].length > 0) {
-          const wfConfig: WorkflowConfigItem[] = result[2].map((ele: any) => ({
+          const wfConfig: WorkflowConfigItem[] = result[2].map((ele: Record<string, unknown>) => ({
             ...ele,
             isEnabled: true,
-            process_desc: typeof ele.process_desc === 'string' && ele.process_desc.startsWith('{')
-              ? JSON.parse(ele.process_desc).enabled_message
+            process_desc: typeof ele.process_desc === 'string' && (ele.process_desc as string).startsWith('{')
+              ? JSON.parse(ele.process_desc as string).enabled_message
               : ele.process_desc,
-            tooltip: typeof ele.process_desc === 'string' && ele.process_desc.startsWith('{')
-              ? JSON.parse(ele.process_desc).enabled_message
+            tooltip: typeof ele.process_desc === 'string' && (ele.process_desc as string).startsWith('{')
+              ? JSON.parse(ele.process_desc as string).enabled_message
               : ele.process_desc,
             process_name: ele.process_name || ele.process_desc,
-          }));
+          } as WorkflowConfigItem));
           dispatch(setWorkflowConfig(wfConfig));
         }
 
@@ -195,8 +207,8 @@ export function useValidationContentState() {
 
         // ── response[5]: mediaConfig ──
         if (result[5] && Array.isArray(result[5]) && result[5].length > 0) {
-          const mediaConfigArr: MediaConfigType[] = result[5].map((ele: any) => {
-            const extractedFilePath = ele.extracted_file_name || '';
+          const mediaConfigArr: MediaConfigType[] = result[5].map((ele: Record<string, unknown>) => {
+            const extractedFilePath = (ele.extracted_file_name as string) || '';
             const extractedFileName = extractedFilePath.substring(
               extractedFilePath.lastIndexOf('/') + 1
             );
@@ -204,7 +216,7 @@ export function useValidationContentState() {
               ...ele,
               extracted_file_path: extractedFilePath,
               extracted_file_name: extractedFileName,
-            };
+            } as MediaConfigType;
           });
           dispatch(setMediaConfig(mediaConfigArr));
 
@@ -498,10 +510,10 @@ export function useValidationContentState() {
 
   // ─── Toggle Line Item View ───
   // Origin: $scope.changeLineItemView (line ~431)
-  const handleChangeLineItemView = useCallback((lineItem: any[], _index: number) => {
+  const handleChangeLineItemView = useCallback((lineItem: IXSDField[], _index: number) => {
     if (!lineItem || lineItem.length === 0) return;
 
-    const currentRow = lineItem[0].row;
+    const currentRow = lineItem[0].row ?? 1;
     dispatch(setSelectedLineItemIndex(currentRow - 1));
     dispatch(setSelectedLineItemObj(lineItem));
     dispatch(setSingleLineItemView(!contentState.singleLineItemView));
@@ -511,36 +523,38 @@ export function useValidationContentState() {
   // Origin: $rootScope.filterByException (line ~2286)
   const handleFilterByException = useCallback(() => {
     const exceptions: FilteredException[] = [];
-    const exceptionArray: any[] = [];
+    const exceptionArray: ExceptionGroupItem[] = [];
 
-    contentState.ixsdDataHeaders.forEach((header) => {
+    contentState.ixsdDataHeaders.forEach((header: IXSDDataHeader) => {
       if (header.view_style === 'object') {
-        header.ixsd_fields.forEach((field: any, index: number) => {
+        // For object view, flatten the 2D array to iterate fields
+        const flatFields: IXSDField[] = header.ixsd_fields.flat();
+        flatFields.forEach((field: IXSDField, index: number) => {
           if (field.exception_msg && field.exception_msg.length > 0 && field.input_border === '2px solid red') {
-            field.exception_msg.forEach((msg: any) => {
+            field.exception_msg.forEach((msg: ExceptionMessage) => {
               exceptionArray.push({
                 id: exceptionArray.length,
                 rowNo: index + 1,
                 complexType: header.label,
                 complexTypeLabel: header.header_name,
                 key: field.key,
-                exception: typeof msg === 'string' ? msg : msg.exception_msg || '',
+                exception: msg.exception_msg || '',
               });
             });
           }
         });
       } else {
-        header.ixsd_fields.forEach((rows: any[], index: number) => {
-          rows.forEach((field: any) => {
+        header.ixsd_fields.forEach((rows: IXSDField[], index: number) => {
+          rows.forEach((field: IXSDField) => {
             if (field.exception_msg && field.exception_msg.length > 0 && field.input_border === '2px solid red') {
-              field.exception_msg.forEach((msg: any) => {
+              field.exception_msg.forEach((msg: ExceptionMessage) => {
                 exceptionArray.push({
                   id: exceptionArray.length,
                   rowNo: index + 1,
                   complexType: header.label,
                   complexTypeLabel: header.header_name,
                   key: field.key,
-                  exception: typeof msg === 'string' ? msg : msg.exception_msg || '',
+                  exception: msg.exception_msg || '',
                 });
               });
             }
@@ -550,25 +564,25 @@ export function useValidationContentState() {
     });
 
     // Group by exception description
-    const grouped: Record<string, any[]> = {};
-    exceptionArray.forEach((item) => {
+    const grouped: Record<string, ExceptionGroupItem[]> = {};
+    exceptionArray.forEach((item: ExceptionGroupItem) => {
       const key = item.exception;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(item);
     });
 
     for (const exceptionDesc in grouped) {
-      const fieldGroup: Record<string, any[]> = {};
-      grouped[exceptionDesc].forEach((item) => {
+      const fieldGroup: Record<string, ExceptionGroupItem[]> = {};
+      grouped[exceptionDesc].forEach((item: ExceptionGroupItem) => {
         if (!fieldGroup[item.complexType]) fieldGroup[item.complexType] = [];
         fieldGroup[item.complexType].push(item);
       });
 
-      const fieldList = Object.keys(fieldGroup).map((complexType) => ({
+      const fieldList = Object.keys(fieldGroup).map((complexType: string) => ({
         complexType,
         complexTypeLabel: fieldGroup[complexType][0].complexTypeLabel,
         isSelected: true,
-        fieldList: fieldGroup[complexType].map((o) => ({ key: o.key, rowNo: o.rowNo })),
+        fieldList: fieldGroup[complexType].map((o: ExceptionGroupItem) => ({ key: o.key, rowNo: o.rowNo })),
         exception_count: fieldGroup[complexType].length,
       }));
 
@@ -588,15 +602,16 @@ export function useValidationContentState() {
   // Origin: $scope.checkExceptionFields (line ~2141)
   const checkExceptionFields = useCallback((): boolean => {
     let exceptionCount = 0;
-    contentState.ixsdDataHeaders.forEach((header) => {
+    contentState.ixsdDataHeaders.forEach((header: IXSDDataHeader) => {
       if (header.view_style === 'object') {
-        const hasExc = (header.ixsd_fields as any[]).some(
-          (field: any) => field.input_border === '2px solid red'
+        const flatFields: IXSDField[] = header.ixsd_fields.flat();
+        const hasExc = flatFields.some(
+          (field: IXSDField) => field.input_border === '2px solid red'
         );
         if (hasExc) exceptionCount++;
       } else {
-        header.ixsd_fields.forEach((rows: any[]) => {
-          const hasExc = rows.some((field: any) => field.input_border === '2px solid red');
+        header.ixsd_fields.forEach((rows: IXSDField[]) => {
+          const hasExc = rows.some((field: IXSDField) => field.input_border === '2px solid red');
           if (hasExc) exceptionCount++;
         });
       }
@@ -607,14 +622,15 @@ export function useValidationContentState() {
   // ─── Check if Any Field Edited ───
   // Origin: $scope.checkIsAnyFieldEdited (line ~1367)
   const checkIsAnyFieldEdited = useCallback((): boolean => {
-    return contentState.ixsdDataHeaders.some((header) => {
+    return contentState.ixsdDataHeaders.some((header: IXSDDataHeader) => {
       if (header.view_style === 'object') {
-        return (header.ixsd_fields as any[]).some(
-          (field: any) => field.isExtractedDataChanged
+        const flatFields: IXSDField[] = header.ixsd_fields.flat();
+        return flatFields.some(
+          (field: IXSDField) => field.isExtractedDataChanged
         );
       } else {
-        return header.ixsd_fields.some((rows: any[]) =>
-          rows.some((field: any) => field.isExtractedDataChanged)
+        return header.ixsd_fields.some((rows: IXSDField[]) =>
+          rows.some((field: IXSDField) => field.isExtractedDataChanged)
         );
       }
     });

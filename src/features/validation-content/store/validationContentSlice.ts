@@ -4,7 +4,6 @@
  * Origin: ValidationContentController.js $scope and $rootScope variables
  */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { RootState } from '../../../app/store';
 import type {
   ValidationContentState,
   SelectedDIN,
@@ -393,18 +392,21 @@ export const {
 } = validationContentSlice.actions;
 
 // ─── Selectors ───
-export const selectValidationContent = (state: RootState) => state.validationContent;
-export const selectSelectedDIN = (state: RootState) => state.validationContent.selectedDIN;
-export const selectMediaConfig = (state: RootState) => state.validationContent.mediaConfig;
-export const selectIxsdDataHeaders = (state: RootState) => state.validationContent.ixsdDataHeaders;
-export const selectSelectedDataJson = (state: RootState) => state.validationContent.selectedDataJson;
-export const selectEnableEditStatus = (state: RootState) => state.validationContent.enableEditStatus;
-export const selectIsLoading = (state: RootState) => state.validationContent.isLoading;
-export const selectIsWorkflowProcessing = (state: RootState) => state.validationContent.isWorkflowProcessing;
-export const selectCurrentStatus = (state: RootState) => state.validationContent.currentStatus;
-export const selectWorkflowConfig = (state: RootState) => state.validationContent.workflowConfig;
-export const selectHasExceptions = (state: RootState) => state.validationContent.hasExceptions;
-export const selectFilteredException = (state: RootState) => state.validationContent.filteredException;
-export const selectSelectedDataHeader = (state: RootState) => state.validationContent.selectedDataHeader;
+// Use inline state type instead of RootState to avoid circular dependency (store ↔ slice)
+type StateWithValidationContent = { validationContent: ValidationContentState };
+
+export const selectValidationContent = (state: StateWithValidationContent) => state.validationContent;
+export const selectSelectedDIN = (state: StateWithValidationContent) => state.validationContent.selectedDIN;
+export const selectMediaConfig = (state: StateWithValidationContent) => state.validationContent.mediaConfig;
+export const selectIxsdDataHeaders = (state: StateWithValidationContent) => state.validationContent.ixsdDataHeaders;
+export const selectSelectedDataJson = (state: StateWithValidationContent) => state.validationContent.selectedDataJson;
+export const selectEnableEditStatus = (state: StateWithValidationContent) => state.validationContent.enableEditStatus;
+export const selectIsLoading = (state: StateWithValidationContent) => state.validationContent.isLoading;
+export const selectIsWorkflowProcessing = (state: StateWithValidationContent) => state.validationContent.isWorkflowProcessing;
+export const selectCurrentStatus = (state: StateWithValidationContent) => state.validationContent.currentStatus;
+export const selectWorkflowConfig = (state: StateWithValidationContent) => state.validationContent.workflowConfig;
+export const selectHasExceptions = (state: StateWithValidationContent) => state.validationContent.hasExceptions;
+export const selectFilteredException = (state: StateWithValidationContent) => state.validationContent.filteredException;
+export const selectSelectedDataHeader = (state: StateWithValidationContent) => state.validationContent.selectedDataHeader;
 
 export default validationContentSlice.reducer;

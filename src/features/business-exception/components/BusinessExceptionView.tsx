@@ -20,7 +20,7 @@ import {
 } from '../store/businessExceptionSlice';
 import { TableExtractionPanel } from './TableExtractionPanel';
 import { BusinessFieldSelectionDialog } from './BusinessFieldSelectionDialog';
-import type { CropCoordinates, IXSDField, IXSDDataHeader } from '../types/BusinessExceptionTypes';
+import type { CropCoordinates, IXSDField, IXSDDataHeader, WorkflowActionConfig } from '../types/BusinessExceptionTypes';
 
 // ─── Styles ───
 const styles = {
@@ -369,7 +369,7 @@ export const BusinessExceptionView: React.FC = () => {
 
     return (
       <div style={{ padding: '4px 0' }}>
-        {fields.map((field, idx) => (
+        {fields.map((field: IXSDField, idx: number) => (
           <div
             key={field.key}
             style={{
@@ -394,7 +394,7 @@ export const BusinessExceptionView: React.FC = () => {
               value={field.value || ''}
               readOnly={!field.edit}
               placeholder={field.key_hint || ''}
-              onChange={(_e) => {
+              onChange={(_e: React.ChangeEvent<HTMLInputElement>) => {
                 // Update field value in headers
                 // This will be handled through dispatch
               }}
@@ -418,7 +418,7 @@ export const BusinessExceptionView: React.FC = () => {
         {/* Header row */}
         <div style={{ ...styles.lineItemRow, backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
           <div style={{ width: '30px', textAlign: 'center' }}>#</div>
-          {columns.map((col) => (
+          {columns.map((col: IXSDField) => (
             <div key={col.key} style={styles.lineItemCell}>
               {col.key_alias_name || col.key}
             </div>
@@ -426,10 +426,10 @@ export const BusinessExceptionView: React.FC = () => {
           <div style={{ width: '60px' }}>Actions</div>
         </div>
         {/* Data rows */}
-        {lineItems.map((row, rowIdx) => (
+        {lineItems.map((row: IXSDField[], rowIdx: number) => (
           <div key={rowIdx} style={styles.lineItemRow}>
             <div style={{ width: '30px', textAlign: 'center', fontSize: '10px' }}>{rowIdx + 1}</div>
-            {row.map((cell) => (
+            {row.map((cell: IXSDField) => (
               <div key={cell.key} style={styles.lineItemCell}>
                 {cell.value || ''}
               </div>
@@ -500,7 +500,7 @@ export const BusinessExceptionView: React.FC = () => {
         <span style={{ flex: 1 }} />
 
         {/* Workflow Actions */}
-        {state.workflowActionConfigData.map((action, idx) => (
+        {state.workflowActionConfigData.map((action: WorkflowActionConfig, idx: number) => (
           <button
             key={idx}
             style={action.isEnabled ? styles.toolbarBtn : styles.toolbarBtnDisabled}
@@ -574,7 +574,7 @@ export const BusinessExceptionView: React.FC = () => {
           {/* Tab bar for iXSD headers */}
           {state.ixsdDataHeaders.length > 0 && (
             <div style={styles.tabBar}>
-              {state.ixsdDataHeaders.map((header, idx) => (
+              {state.ixsdDataHeaders.map((header: IXSDDataHeader, idx: number) => (
                 <button
                   key={header.label}
                   style={{
@@ -629,7 +629,7 @@ export const BusinessExceptionView: React.FC = () => {
                   Close
                 </button>
               </div>
-              {state.lineItemForDataEntry.map((field, idx) => (
+              {state.lineItemForDataEntry.map((field: IXSDField, idx: number) => (
                 <div key={field.key} style={styles.fieldRow}>
                   <div style={styles.fieldLabel}>{field.key_alias_name || field.key}</div>
                   <input

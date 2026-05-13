@@ -205,7 +205,7 @@ export const BusinessFieldSelectionDialog: React.FC<BusinessFieldSelectionDialog
 
   // ─── Build field list with discard option ───
   const fieldListWithDiscard = useMemo(() => {
-    const fields = selectedComplexTypeFields.map((f, idx) => ({
+    const fields = selectedComplexTypeFields.map((f: ComplexTypeField, idx: number) => ({
       ...f,
       isChecked: idx === 0,
     }));
@@ -221,7 +221,7 @@ export const BusinessFieldSelectionDialog: React.FC<BusinessFieldSelectionDialog
   // ─── Filtered fields based on search ��──
   const filteredFields = useMemo(() => {
     if (!searchInput.trim()) return fieldListWithDiscard;
-    return fieldListWithDiscard.filter((f) =>
+    return fieldListWithDiscard.filter((f: ComplexTypeField) =>
       f.ixsdFieldName.toLowerCase().includes(searchInput.toLowerCase()) ||
       f.ixsdAliaseName.toLowerCase().includes(searchInput.toLowerCase())
     );
@@ -288,7 +288,7 @@ export const BusinessFieldSelectionDialog: React.FC<BusinessFieldSelectionDialog
   const handleRemoveSeparator = useCallback((index: number) => {
     setBusinessFieldConfig((prev) => ({
       ...prev,
-      columnSeparationList: prev.columnSeparationList.filter((_, i) => i !== index),
+      columnSeparationList: prev.columnSeparationList.filter((_: ColumnSeparation, i: number) => i !== index),
     }));
   }, []);
 
@@ -298,7 +298,7 @@ export const BusinessFieldSelectionDialog: React.FC<BusinessFieldSelectionDialog
 
     // Validate multi-header selection
     if (config.columnSeparationList.length > 0) {
-      const hasEmptyField = config.columnSeparationList.some((item) => item.businessField === '');
+      const hasEmptyField = config.columnSeparationList.some((item: ColumnSeparation) => item.businessField === '');
       if (hasEmptyField) return;
     } else if (!config.businessField) {
       return;
@@ -328,14 +328,14 @@ export const BusinessFieldSelectionDialog: React.FC<BusinessFieldSelectionDialog
 
       // Reset other columns if skip/unique set
       if (config.isSkipIndex) {
-        columnHeaders.forEach((col, idx) => {
+        columnHeaders.forEach((col: ColumnHeader, idx: number) => {
           if (idx !== tableColumnIndex) {
             columnHeaders[idx] = { ...col, isSkipIndex: false };
           }
         });
       }
       if (config.isUniqueIndex) {
-        columnHeaders.forEach((col, idx) => {
+        columnHeaders.forEach((col: ColumnHeader, idx: number) => {
           if (idx !== tableColumnIndex) {
             columnHeaders[idx] = { ...col, isUniqueColumn: false };
           }
@@ -392,7 +392,7 @@ export const BusinessFieldSelectionDialog: React.FC<BusinessFieldSelectionDialog
             placeholder="Search fields..."
           />
           <div style={styles.fieldList}>
-            {filteredFields.map((field) => (
+            {filteredFields.map((field: ComplexTypeField) => (
               <div
                 key={field.ixsdFieldName}
                 style={
@@ -468,7 +468,7 @@ export const BusinessFieldSelectionDialog: React.FC<BusinessFieldSelectionDialog
         {businessFieldConfig.isMultiHeader && (
           <div style={styles.section}>
             <div style={styles.sectionLabel}>Column Separators</div>
-            {businessFieldConfig.columnSeparationList.map((sep, idx) => (
+            {businessFieldConfig.columnSeparationList.map((sep: ColumnSeparation, idx: number) => (
               <div key={idx} style={styles.separatorRow}>
                 <span style={{ flex: 1 }}>
                   {sep.businessField} ({sep.separatedText})
@@ -495,7 +495,7 @@ export const BusinessFieldSelectionDialog: React.FC<BusinessFieldSelectionDialog
             {/* Separator selection */}
             <div style={{ marginTop: '8px' }}>
               <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                {TWIN_HEADER_SEPARATOR_LIST.map((sep) => (
+                {TWIN_HEADER_SEPARATOR_LIST.map((sep: TwinHeaderSeparator) => (
                   <button
                     key={sep.separatorText}
                     style={{

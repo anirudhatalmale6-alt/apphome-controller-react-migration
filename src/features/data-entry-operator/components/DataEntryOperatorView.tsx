@@ -11,13 +11,24 @@ import {
   selectDataEntryOperator,
   setShowPageList,
   setShowActionDialog,
+  setCurrentStatus,
 } from '../store/dataEntryOperatorSlice';
+import {
+  selectSelectedDIN,
+  selectCurrentStatus as selectContentCurrentStatus,
+  selectBusinessContent,
+} from '../../business-content/store/businessContentSlice';
+import { selectBusinessApps } from '../../business-apps/store/businessAppsSlice';
 import { WorkflowActionDialog } from './WorkflowActionDialog';
-import type { WorkflowRoutingJson } from '../types/DataEntryOperatorTypes';
+import type { SelectedException, WorkflowRoutingJson } from '../types/DataEntryOperatorTypes';
 
 export const DataEntryOperatorView: React.FC = () => {
   const dispatch = useAppDispatch();
   const deState = useAppSelector(selectDataEntryOperator);
+  const selectedDIN = useAppSelector(selectSelectedDIN);
+  const contentCurrentStatus = useAppSelector(selectContentCurrentStatus);
+  const businessContent = useAppSelector(selectBusinessContent);
+  const businessAppsState = useAppSelector(selectBusinessApps);
   const {
     handleLoadExceptionMedia,
     handleChangeMediaPage,
@@ -45,7 +56,29 @@ export const DataEntryOperatorView: React.FC = () => {
   // ─── Initialize: Load media on mount ───
   useEffect(() => {
     if (deState.selectedException && !deState.isLoading && !deState.pdfStream) {
+      // Fallback: data-entry-operator slice already has a selectedException
       handleLoadExceptionMedia(deState.selectedException);
+    } else if (selectedDIN && selectedDIN.din && !deState.isLoading && !deState.pdfStream) {
+      // Primary path: build SelectedException from businessContent + businessApps slices
+      const storedWorkflow = businessAppsState.storedWorkflow;
+      const mappedException: SelectedException = {
+        uin: selectedDIN.uin || '',
+        fileId: selectedDIN.fileName || '',
+        sourceFileId: storedWorkflow?.source_file_id || selectedDIN.fileName || '',
+        extractFileId: Number(storedWorkflow?.extracted_file_id) || 0,
+        exception_type: selectedDIN.hasException || '',
+        exception_ticket: storedWorkflow?.exception_ticket || '',
+        fromController: (businessContent.fromController || 'apps') as 'apps' | 'tasks',
+        filename: selectedDIN.fileName || '',
+        filePath: '',
+        fileDate: selectedDIN.queue_btime || '',
+        formMedia: '',
+        form_type: '',
+      };
+      handleLoadExceptionMedia(mappedException);
+      if (contentCurrentStatus) {
+        dispatch(setCurrentStatus(contentCurrentStatus));
+      }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

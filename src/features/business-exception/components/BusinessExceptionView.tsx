@@ -18,9 +18,11 @@ import {
   setShowDataEntryForm,
   setImgDimensions,
 } from '../store/businessExceptionSlice';
+import { selectSelectedDIN as selectContentSelectedDIN } from '../../business-content/store/businessContentSlice';
+import { selectBusinessApps } from '../../business-apps/store/businessAppsSlice';
 import { TableExtractionPanel } from './TableExtractionPanel';
 import { BusinessFieldSelectionDialog } from './BusinessFieldSelectionDialog';
-import type { CropCoordinates, IXSDField, IXSDDataHeader, WorkflowActionConfig } from '../types/BusinessExceptionTypes';
+import type { CropCoordinates, ExceptionTicket, IXSDField, IXSDDataHeader, WorkflowActionConfig } from '../types/BusinessExceptionTypes';
 
 // ─── Styles ───
 const styles = {
@@ -195,7 +197,10 @@ const styles = {
 export const BusinessExceptionView: React.FC = () => {
   const dispatch = useAppDispatch();
   const state = useAppSelector(selectBusinessException);
+  const contentSelectedDIN = useAppSelector(selectContentSelectedDIN);
+  const businessAppsState = useAppSelector(selectBusinessApps);
   const {
+    handleLoadDataEntryMediaList,
     handleChangeMediaPage,
     handleExtractData,
     handleExtractTable,
@@ -214,6 +219,29 @@ export const BusinessExceptionView: React.FC = () => {
     handleActivateSkipIndexText,
     handleNavigateBack,
   } = useBusinessExceptionState();
+
+  // ─── Load exception data on mount ───
+  useEffect(() => {
+    if (contentSelectedDIN && contentSelectedDIN.din) {
+      const workflow = businessAppsState.storedWorkflow;
+      const ticket: ExceptionTicket = {
+        din: contentSelectedDIN.din,
+        uin: contentSelectedDIN.uin || '',
+        fileId: contentSelectedDIN.fileName || workflow?.file_id || '',
+        fileName: contentSelectedDIN.fileName || workflow?.file_id || '',
+        filePath: '',
+        formMedia: 'PDF-EDI',
+        formInputSource: '',
+        exception_type: contentSelectedDIN.hasException || workflow?.exception_type || '',
+        exception_ticket: workflow?.exception_ticket || '',
+        exception_version: '',
+        extractFileId: workflow?.extracted_file_id || '',
+        sourceFileId: workflow?.source_file_id || '',
+        fromController: 'apps',
+      };
+      handleLoadDataEntryMediaList(ticket);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Canvas Crop State ───
   const canvasRef = useRef<HTMLCanvasElement>(null);

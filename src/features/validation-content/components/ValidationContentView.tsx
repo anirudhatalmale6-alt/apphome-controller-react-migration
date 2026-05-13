@@ -10,7 +10,12 @@ import {
   selectValidationContent,
   setSingleLineItemView,
   setShowExceptionSidebar,
+  setCurrentStatus,
 } from '../store/validationContentSlice';
+import {
+  selectSelectedDIN as selectBusinessSelectedDIN,
+  selectCurrentStatus as selectBusinessCurrentStatus,
+} from '../../business-content/store/businessContentSlice';
 import { WorkflowValidationInbox } from './WorkflowValidationInbox';
 import { ValidationWorkflowDialog } from './ValidationWorkflowDialog';
 import type { IXSDDataHeader, IXSDField, ExceptionMessage, WorkflowConfigItem, MediaConfig } from '../types/ValidationContentTypes';
@@ -195,6 +200,8 @@ const styles = {
 export const ValidationContentView: React.FC = () => {
   const dispatch = useAppDispatch();
   const contentState = useAppSelector(selectValidationContent);
+  const businessContentDIN = useAppSelector(selectBusinessSelectedDIN);
+  const businessContentStatus = useAppSelector(selectBusinessCurrentStatus);
   const {
     handleLoadValidationMedia,
     handleChangePageNumber,
@@ -218,6 +225,22 @@ export const ValidationContentView: React.FC = () => {
   useEffect(() => {
     if (contentState.selectedDIN) {
       handleLoadValidationMedia(contentState.selectedDIN);
+    } else if (businessContentDIN && businessContentDIN.din) {
+      // When navigating from BusinessApps/BusinessTasks, the DIN lives in
+      // the businessContent slice. Bridge it into the validationContent slice.
+      if (businessContentStatus) {
+        dispatch(setCurrentStatus(businessContentStatus));
+      }
+      const validationDIN: import('../types/ValidationContentTypes').SelectedDIN = {
+        din: businessContentDIN.din,
+        uin: businessContentDIN.uin,
+        TransactionID: businessContentDIN.TransactionID,
+        fileName: businessContentDIN.fileName,
+        queue_btime: businessContentDIN.queue_btime,
+        ixsd_id: businessContentDIN.ixsd_id,
+        hasException: businessContentDIN.hasException,
+      };
+      handleLoadValidationMedia(validationDIN);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
